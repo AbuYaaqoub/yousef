@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -9,18 +10,41 @@ import {
     History,
     Settings,
     Search,
-    Store
+    Store,
+    Globe
 } from 'lucide-react';
 
 const navigation = [
-    { name: 'لوحة التحكم', href: '/1', icon: LayoutDashboard },
-    { name: 'المتاجر', href: '/leads', icon: Users },
-    { name: 'السجل', href: '/history', icon: History },
-    { name: 'الإعدادات', href: '/settings', icon: Settings },
+    { name: 'الرئيسية (مركز الإدارة)', href: '/', icon: LayoutDashboard },
+    { name: 'كاشط سلة ومحلي', href: '/1', icon: Store },
+    { name: 'كاشط منصة مزيد', href: '/2', icon: Search },
+    { name: 'كاشط خرائط قوقل', href: '/3', icon: Globe },
+    { name: 'المتاجر المكتشفة', href: '/leads', icon: Users },
+    { name: 'سجل العمليات', href: '/history', icon: History },
+    { name: 'الإعدادات والربط', href: '/settings', icon: Settings },
 ];
 
 export function Sidebar() {
     const pathname = usePathname();
+    const [totalLeads, setTotalLeads] = useState<number | null>(null);
+
+    useEffect(() => {
+        const fetchStats = async () => {
+            try {
+                const res = await fetch('/api/stats');
+                const data = await res.json();
+                if (data.success && data.stats) {
+                    setTotalLeads(data.stats.totalLeads);
+                }
+            } catch (e) {
+                console.error('Failed to fetch sidebar statistics:', e);
+            }
+        };
+        fetchStats();
+        // Refresh every 30 seconds
+        const interval = setInterval(fetchStats, 30000);
+        return () => clearInterval(interval);
+    }, []);
 
     return (
         <aside className="fixed inset-y-0 right-0 z-50 w-72 bg-white border-l border-slate-200 flex flex-col">
@@ -40,11 +64,13 @@ export function Sidebar() {
             {/* Quick Stats */}
             <div className="mx-6 my-6 p-4 bg-gradient-to-br from-orange-50 to-orange-100/50 rounded-2xl border border-orange-100">
                 <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs font-bold text-orange-700">إجمالي المتاجر</span>
+                    <span className="text-xs font-bold text-orange-700">إجمالي العملاء المكتشفين</span>
                     <Store className="text-orange-600" size={16} />
                 </div>
-                <div className="text-3xl font-black text-slate-900 tracking-tighter">2,847</div>
-                <div className="text-xs text-orange-600 font-medium mt-1">+124 هذا الأسبوع</div>
+                <div className="text-3xl font-black text-slate-900 tracking-tighter">
+                    {totalLeads !== null ? totalLeads.toLocaleString('ar-EG') : '...'}
+                </div>
+                <div className="text-xs text-orange-600 font-medium mt-1">تحديث حي وتلقائي للملفات</div>
             </div>
 
             {/* Navigation */}
