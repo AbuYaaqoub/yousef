@@ -20,6 +20,7 @@ export async function scrapeMapsLeads(searchQuery: string, onResult?: (event: an
         const pageSize = 20;
         let page = 1;
         let hasMore = true;
+        let ll: string | undefined = undefined;
 
         while (hasMore && results.length < limit) {
             if (shouldCancel(jobId)) {
@@ -35,18 +36,30 @@ export async function scrapeMapsLeads(searchQuery: string, onResult?: (event: an
                 });
             }
 
-            // Serper Maps endpoint: https://google.serper.dev/maps
-            const response = await axios.post('https://google.serper.dev/maps', {
+            const requestPayload: any = {
                 q: searchQuery,
                 page: page,
                 num: pageSize
-            }, {
+            };
+
+            // If we have an ll coordinate (required for page > 1 in Serper), include it
+            if (ll) {
+                requestPayload.ll = ll;
+            }
+
+            // Serper Maps endpoint: https://google.serper.dev/maps
+            const response = await axios.post('https://google.serper.dev/maps', requestPayload, {
                 headers: {
                     'X-API-KEY': apiKey,
                     'Content-Type': 'application/json'
                 },
                 timeout: 20000
             });
+
+            // Capture the ll location from response to support pagination on subsequent requests
+            if (response.data.ll) {
+                ll = response.data.ll;
+            }
 
             const places = response.data.places || [];
             if (places.length === 0) {
@@ -88,10 +101,6 @@ export async function scrapeMapsLeads(searchQuery: string, onResult?: (event: an
             }
 
             page++;
-            // If the returned places count is less than our requested size, we might have hit the end
-            if (places.length < pageSize) {
-                hasMore = false;
-            }
 
             // Slight delay between requests to be gentle
             await new Promise(resolve => setTimeout(resolve, 500));
