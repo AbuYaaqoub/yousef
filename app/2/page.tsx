@@ -412,7 +412,7 @@ export default function MazeedDashboard() {
                     <h1 className="text-3xl font-extrabold text-slate-900 mb-2 font-outfit">استخبارات المتاجر (مزيد Zid)</h1>
                     <p className="text-slate-500 text-sm font-medium">كشط تجار منصة مزيد التابعة لـ Zid وإثراء بيانات الاتصال بالكامل</p>
                 </div>
-                <div className="w-12 h-12 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-600 font-bold text-xl border border-orange-500/20">
+                <div className="w-12 h-12 rounded-2xl bg-zinc-50 text-black border border-zinc-200 font-extrabold flex items-center justify-center text-xl shadow-sm">
                     Z
                 </div>
             </div>
@@ -421,10 +421,10 @@ export default function MazeedDashboard() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                 {/* Search / Scraper Card */}
                 <div className="bg-white p-6 rounded-[35px] border border-slate-200 shadow-sm relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 blur-3xl -mr-16 -mt-16 group-hover:bg-orange-500/10 transition-colors"></div>
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-zinc-500/5 blur-3xl -mr-16 -mt-16 group-hover:bg-zinc-500/10 transition-colors"></div>
                     <div className="relative z-10">
                         <div className="flex items-center gap-3 mb-5">
-                            <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-600">
+                            <div className="w-10 h-10 rounded-xl bg-zinc-500/10 flex items-center justify-center text-zinc-800">
                                 <Store size={20} />
                             </div>
                             <h3 className="text-xl font-bold text-slate-900">الكشط الأولي في مزيد (Playwright)</h3>
@@ -437,7 +437,7 @@ export default function MazeedDashboard() {
                                     value={mazeedQuery}
                                     onChange={(e) => setMazeedQuery(e.target.value)}
                                     placeholder="ابحث عن منتج (مثال: عطور، توزيعات، قهوة)..."
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 px-5 pr-11 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all text-sm font-medium"
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 px-5 pr-11 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-all text-sm font-medium"
                                     onKeyDown={(e) => e.key === 'Enter' && startMazeedScrape()}
                                 />
                                 <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
@@ -450,7 +450,7 @@ export default function MazeedDashboard() {
                                         value={mazeedLimit}
                                         onChange={(e) => setMazeedLimit(Number(e.target.value))}
                                         placeholder="الحد"
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 px-3 text-center text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all text-sm font-bold"
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 px-3 text-center text-slate-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-all text-sm font-bold"
                                         title="الحد الأقصى للمتاجر"
                                     />
                                 </div>
@@ -461,7 +461,7 @@ export default function MazeedDashboard() {
                                     variant="primary"
                                     icon={loading ? <Loader2 className="animate-spin" size={18} /> : <Play size={18} />}
                                     label="بدء الاستخراج"
-                                    className="flex-1 justify-center py-3.5 !bg-orange-600 hover:!bg-orange-700 rounded-2xl"
+                                    className="flex-1 justify-center py-3.5 !bg-black hover:!bg-zinc-800 text-white rounded-2xl"
                                 />
                                 <ActionButton
                                     onClick={addToWaitingList}
@@ -492,7 +492,7 @@ export default function MazeedDashboard() {
                                 <select
                                     value={selectedSheet}
                                     onChange={(e) => setSelectedSheet(e.target.value)}
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 px-5 pr-9 text-slate-900 appearance-none focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all cursor-pointer text-sm font-semibold"
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 px-5 pr-9 text-slate-900 appearance-none focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-all cursor-pointer text-sm font-semibold"
                                 >
                                     <option value="">اختر ورقة البحث لتطويرها...</option>
                                     {availableSheets.map(name => (
@@ -521,7 +521,7 @@ export default function MazeedDashboard() {
                 <div className="mb-8 bg-white p-6 rounded-[35px] border border-slate-200 shadow-sm relative overflow-hidden">
                     <div className="flex items-center justify-between mb-6">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-600">
+                            <div className="w-10 h-10 rounded-xl bg-zinc-500/10 flex items-center justify-center text-zinc-800">
                                 <RotateCcw size={20} className="rotate-180" />
                             </div>
                             <div>
@@ -554,14 +554,14 @@ export default function MazeedDashboard() {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {waitingList.map((item) => (
                             <div key={item.id} className={`p-4 rounded-2xl border transition-all flex items-center justify-between group ${
-                                item.status === 'processing' ? 'border-orange-500 bg-orange-50/30' :
+                                item.status === 'processing' ? 'border-black bg-zinc-50' :
                                 item.status === 'completed' ? 'border-emerald-200 bg-emerald-50/30' :
                                 item.status === 'failed' ? 'border-rose-200 bg-rose-50/30' :
                                 'border-slate-100 bg-slate-50/30'
                             }`}>
                                 <div className="flex items-center gap-3 overflow-hidden">
                                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                                        item.status === 'processing' ? 'bg-orange-500 text-white animate-pulse' :
+                                        item.status === 'processing' ? 'bg-black text-white animate-pulse' :
                                         item.status === 'completed' ? 'bg-emerald-500 text-white' :
                                         item.status === 'failed' ? 'bg-rose-500 text-white' :
                                         'bg-slate-200 text-slate-500'
@@ -596,10 +596,10 @@ export default function MazeedDashboard() {
             {/* Merge Sheets Section */}
             {availableSheets.length > 0 && (
                 <div className="mb-8 bg-white p-6 rounded-[35px] border border-slate-200 shadow-sm relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 blur-3xl -mr-16 -mt-16 group-hover:bg-emerald-500/10 transition-colors"></div>
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-zinc-500/5 blur-3xl -mr-16 -mt-16 group-hover:bg-zinc-500/10 transition-colors"></div>
                     <div className="relative z-10">
                         <div className="flex items-center gap-3 mb-6">
-                            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600">
+                            <div className="w-10 h-10 rounded-xl bg-zinc-500/10 flex items-center justify-center text-zinc-800">
                                 <Share2 size={20} />
                             </div>
                             <div>
@@ -615,7 +615,7 @@ export default function MazeedDashboard() {
                                     {availableSheets.map(sheet => (
                                         <label key={sheet} className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-all ${
                                             selectedMergeSheets.includes(sheet) 
-                                            ? 'bg-emerald-50 border-emerald-200 text-emerald-700' 
+                                            ? 'bg-zinc-100 border-zinc-300 text-zinc-900 font-extrabold' 
                                             : 'bg-white border-slate-100 text-slate-600 hover:border-slate-300'
                                         }`}>
                                             <input 
@@ -628,7 +628,7 @@ export default function MazeedDashboard() {
                                                 }}
                                             />
                                             <div className={`w-4 h-4 rounded border flex items-center justify-center ${
-                                                selectedMergeSheets.includes(sheet) ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300'
+                                                selectedMergeSheets.includes(sheet) ? 'bg-black border-black text-white' : 'border-slate-300'
                                             }`}>
                                                 {selectedMergeSheets.includes(sheet) && <Check size={12} strokeWidth={3} />}
                                             </div>
@@ -646,13 +646,13 @@ export default function MazeedDashboard() {
                                         value={targetMergeName}
                                         onChange={(e) => setTargetMergeName(e.target.value)}
                                         placeholder="مثال: مجمع عطور وتجميل مزيد..."
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 px-5 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-sm font-medium"
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 px-5 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-all text-sm font-medium"
                                     />
                                 </div>
                                 <ActionButton
                                     onClick={handleMergeSheets}
                                     disabled={isMerging || selectedMergeSheets.length < 1 || !targetMergeName.trim()}
-                                    variant="success"
+                                    variant="primary"
                                     icon={isMerging ? <Loader2 className="animate-spin" size={18} /> : <Share2 size={18} />}
                                     label={isMerging ? "جاري دمج الأوراق..." : "إتمام دمج أوراق مزيد"}
                                     className="w-full justify-center py-4 text-base rounded-2xl"
@@ -665,10 +665,10 @@ export default function MazeedDashboard() {
 
             {/* Live Logs Terminal Panel */}
             {(logs.length > 0 || loading) && (
-                <div className="mb-8 bg-slate-900 rounded-[35px] border border-slate-800 p-6 shadow-2xl relative overflow-hidden font-mono text-xs text-orange-400">
+                <div className="mb-8 bg-slate-900 rounded-[35px] border border-slate-800 p-6 shadow-2xl relative overflow-hidden font-mono text-xs text-zinc-300">
                     <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
                         <div className="flex items-center gap-2">
-                            <Terminal size={16} className="text-orange-500" />
+                            <Terminal size={16} className="text-zinc-400" />
                             <span className="font-bold uppercase tracking-wider text-slate-300">وحدة المراقبة الحية لكاشط مزيد (Scraper Logs)</span>
                         </div>
                         <div className="flex gap-1">
@@ -750,7 +750,7 @@ export default function MazeedDashboard() {
             <div className="bg-white rounded-[35px] border border-slate-200 overflow-hidden shadow-sm">
                 <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-600 font-bold border border-orange-500/20">
+                        <div className="w-10 h-10 rounded-xl bg-zinc-50 text-black border border-zinc-200 font-extrabold flex items-center justify-center">
                             Z
                         </div>
                         <div>
@@ -769,7 +769,7 @@ export default function MazeedDashboard() {
                                         type="checkbox"
                                         checked={selectedLeads.size === filteredResults.length && filteredResults.length > 0}
                                         onChange={toggleSelectAll}
-                                        className="w-4 h-4 rounded-lg border-2 border-slate-300 text-orange-600 focus:ring-orange-500 cursor-pointer"
+                                        className="w-4 h-4 rounded-lg border-2 border-slate-300 text-black focus:ring-black cursor-pointer"
                                     />
                                 </th>
                                 <th className="p-4 font-bold">اسم متجر التاجر</th>
@@ -804,7 +804,7 @@ export default function MazeedDashboard() {
                                         <tr
                                             key={globalIdx}
                                             className={`hover:bg-slate-50/50 transition-all group cursor-pointer ${
-                                                isSelected ? 'bg-orange-50/30 hover:bg-orange-100/30' : ''
+                                                isSelected ? 'bg-zinc-100/60 hover:bg-zinc-200/60' : ''
                                             }`}
                                             onClick={() => setSelectedLead(lead)}
                                         >
@@ -813,12 +813,12 @@ export default function MazeedDashboard() {
                                                     type="checkbox"
                                                     checked={isSelected}
                                                     onChange={() => toggleSelectLead(globalIdx)}
-                                                    className="w-4 h-4 rounded-lg border-2 border-slate-300 text-orange-600 focus:ring-orange-500 cursor-pointer"
+                                                    className="w-4 h-4 rounded-lg border-2 border-slate-300 text-black focus:ring-black cursor-pointer"
                                                 />
                                             </td>
                                             <td className="p-4">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-600 font-extrabold text-base border border-orange-500/20 group-hover:scale-110 transition-transform">
+                                                    <div className="w-10 h-10 rounded-xl bg-zinc-50 text-black border border-zinc-200 font-extrabold text-base flex items-center justify-center group-hover:scale-110 transition-transform">
                                                         {lead.storeName?.[0] || 'Z'}
                                                     </div>
                                                     <div>
@@ -854,7 +854,7 @@ export default function MazeedDashboard() {
                                                     <a
                                                         href={lead.domain.startsWith('http') ? lead.domain : `https://${lead.domain}`}
                                                         target="_blank"
-                                                        className="inline-flex items-center gap-1.5 text-orange-600 hover:text-orange-700 text-xs font-bold transition-colors"
+                                                        className="inline-flex items-center gap-1.5 text-zinc-900 hover:text-black text-xs font-extrabold transition-colors underline decoration-zinc-300 hover:decoration-black"
                                                         onClick={(e) => e.stopPropagation()}
                                                     >
                                                         {lead.domain.replace(/^https?:\/\//, '').split('/store/')[0] || lead.domain}
@@ -879,7 +879,7 @@ export default function MazeedDashboard() {
                                                 <span className={`inline-flex px-3 py-1.5 rounded-full text-xs font-bold border ${
                                                     computedRating === '🟢 قوي' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
                                                     computedRating === '🟡 متوسط' ? 'bg-yellow-50 text-yellow-600 border-yellow-100' :
-                                                    computedRating?.includes('مزيد') ? 'bg-orange-50 text-orange-600 border-orange-100' :
+                                                    computedRating?.includes('مزيد') ? 'bg-zinc-100 text-zinc-800 border-zinc-200' :
                                                     'bg-rose-50 text-rose-600 border-rose-100'
                                                 }`}>
                                                     {computedRating ? computedRating.replace(/^🟢|🟡|🔴 /, '') : 'غير محدد'}

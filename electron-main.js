@@ -10,7 +10,7 @@ function createWindow() {
       nodeIntegration: true,
       contextIsolation: false,
     },
-    title: "SallaHunter Pro",
+    title: "نقيب | نظام التنقيب واستخراج البيانات الذكي",
   });
 
   // في حالة التطوير نفتح الرابط المحلي، وفي الإنتاج نفتح الملف المصدر

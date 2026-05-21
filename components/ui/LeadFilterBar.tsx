@@ -99,9 +99,8 @@ export function LeadFilterBar({ onFilterChange, totalLeads }: LeadFilterBarProps
                             <input
                                 type="text"
                                 value={filters.search}
-                                onChange={(e) => updateFilter({ search: e.target.value })}
-                                placeholder="ابحث عن متجر..."
-                                className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-5 pr-12 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all"
+                                                  placeholder="ابحث عن متجر..."
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3.5 px-5 pr-12 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-all"
                             />
                             <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                         </div>
@@ -150,7 +149,7 @@ export function LeadFilterBar({ onFilterChange, totalLeads }: LeadFilterBarProps
                                 >
                                     <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all ${
                                         filters[option.key as keyof LeadFilter]
-                                            ? 'bg-orange-600 border-orange-600'
+                                            ? 'bg-black border-black'
                                             : 'bg-white border-slate-300 group-hover:border-slate-400'
                                     }`}>
                                         {filters[option.key as keyof LeadFilter] && (

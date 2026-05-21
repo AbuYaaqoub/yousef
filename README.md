@@ -1,4 +1,4 @@
-# SallaHunter Pro - Lead Intelligence System
+# نقيب (Naqeeb) - نظام التنقيب واستخراج البيانات الذكي
 
 ## متطلبات التشغيل
 - Node.js 18+

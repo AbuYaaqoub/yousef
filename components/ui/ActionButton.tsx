@@ -29,11 +29,11 @@ export function ActionButton({
     active,
 }: ActionButtonProps) {
     const variants = {
-        primary: 'bg-orange-600 hover:bg-orange-500 text-white shadow-orange-600/20',
-        secondary: 'bg-slate-900 hover:bg-slate-800 text-white shadow-slate-900/10',
+        primary: 'bg-black hover:bg-zinc-800 text-white shadow-black/10',
+        secondary: 'bg-zinc-100 hover:bg-zinc-200 text-black border border-zinc-200 shadow-none',
         danger: 'bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200',
         success: 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/20',
-        ghost: 'bg-transparent hover:bg-slate-100 text-slate-600',
+        ghost: 'bg-transparent hover:bg-zinc-100 text-zinc-600',
     };
 
     const sizes = {

@@ -78,7 +78,7 @@ export default function LeadsPage() {
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             placeholder="ابحث عن متجر..."
-                            className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-5 pr-11 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all text-sm"
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-5 pr-11 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-all text-sm"
                         />
                         <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                     </div>
@@ -100,15 +100,15 @@ export default function LeadsPage() {
                 {showFilters && (
                     <div className="mt-4 pt-4 border-t border-slate-100 flex items-center gap-4">
                         <label className="flex items-center gap-2 cursor-pointer">
-                            <input type="checkbox" className="w-4 h-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500" />
+                            <input type="checkbox" className="w-4 h-4 rounded border-slate-300 text-black focus:ring-black cursor-pointer" />
                             <span className="text-sm text-slate-600">به إيميل فقط</span>
                         </label>
                         <label className="flex items-center gap-2 cursor-pointer">
-                            <input type="checkbox" className="w-4 h-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500" />
+                            <input type="checkbox" className="w-4 h-4 rounded border-slate-300 text-black focus:ring-black cursor-pointer" />
                             <span className="text-sm text-slate-600">به هاتف فقط</span>
                         </label>
                         <label className="flex items-center gap-2 cursor-pointer">
-                            <input type="checkbox" className="w-4 h-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500" />
+                            <input type="checkbox" className="w-4 h-4 rounded border-slate-300 text-black focus:ring-black cursor-pointer" />
                             <span className="text-sm text-slate-600">قوي فقط</span>
                         </label>
                     </div>
@@ -134,14 +134,14 @@ export default function LeadsPage() {
                                 <tr key={idx} className="hover:bg-slate-50 transition-colors">
                                     <td className="p-4">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-600 font-bold">
+                                            <div className="w-10 h-10 rounded-xl bg-zinc-100 flex items-center justify-center text-black border border-zinc-200 font-bold">
                                                 {lead.storeName[0]}
                                             </div>
                                             <span className="font-bold text-slate-900">{lead.storeName}</span>
                                         </div>
                                     </td>
                                     <td className="p-4">
-                                        <a href={lead.domain} target="_blank" className="text-orange-600 hover:underline text-sm font-medium">
+                                        <a href={lead.domain} target="_blank" className="text-black hover:text-zinc-800 underline font-bold text-sm">
                                             {lead.domain.replace('https://', '')}
                                         </a>
                                     </td>

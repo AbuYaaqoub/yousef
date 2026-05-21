@@ -27,7 +27,7 @@ export function BulkActionsToolbar({
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                     <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-xl bg-orange-500 flex items-center justify-center font-bold text-sm">
+                        <div className="w-8 h-8 rounded-xl bg-white text-black flex items-center justify-center font-black text-sm">
                             {selectedCount}
                         </div>
                         <span className="font-bold text-sm">محدد</span>
@@ -51,11 +51,11 @@ export function BulkActionsToolbar({
                 <div className="flex items-center gap-2">
                     <ActionButton
                         onClick={onExport}
-                        variant="success"
+                        variant="primary"
                         icon={<Download size={16} />}
                         label="تصدير المحدد"
                         size="sm"
-                        className="bg-emerald-600 hover:bg-emerald-500 text-white"
+                        className="bg-white text-black hover:bg-zinc-100 border border-zinc-200 shadow-none"
                     />
                     <ActionButton
                         onClick={onDelete}
@@ -63,7 +63,6 @@ export function BulkActionsToolbar({
                         icon={<Trash2 size={16} />}
                         label="حذف المحدد"
                         size="sm"
-                        className="bg-rose-600 hover:bg-rose-500 text-white border-0"
                     />
                 </div>
             </div>

@@ -13,24 +13,24 @@ interface StatCardProps {
 export function StatCard({ icon, label, value, color, trend }: StatCardProps) {
     const colors = {
         slate: {
-            container: 'hover:border-slate-300 bg-white shadow-sm',
-            icon: 'bg-slate-100 text-slate-900',
+            container: 'hover:border-zinc-400 bg-white shadow-sm',
+            icon: 'bg-zinc-50 text-black border border-zinc-200',
         },
         orange: {
-            container: 'hover:border-orange-300 bg-white shadow-sm',
-            icon: 'bg-orange-50 text-orange-600',
+            container: 'hover:border-zinc-400 bg-white shadow-sm',
+            icon: 'bg-zinc-50 text-black border border-zinc-200',
         },
         emerald: {
-            container: 'hover:border-emerald-300 bg-white shadow-sm',
-            icon: 'bg-emerald-50 text-emerald-600',
+            container: 'hover:border-zinc-400 bg-white shadow-sm',
+            icon: 'bg-zinc-50 text-black border border-zinc-200',
         },
         rose: {
-            container: 'hover:border-rose-300 bg-white shadow-sm',
-            icon: 'bg-rose-50 text-rose-600',
+            container: 'hover:border-zinc-400 bg-white shadow-sm',
+            icon: 'bg-zinc-50 text-black border border-zinc-200',
         },
         blue: {
-            container: 'hover:border-blue-300 bg-white shadow-sm',
-            icon: 'bg-blue-50 text-blue-600',
+            container: 'hover:border-zinc-400 bg-white shadow-sm',
+            icon: 'bg-zinc-50 text-black border border-zinc-200',
         },
     };
 

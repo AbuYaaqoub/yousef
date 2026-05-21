@@ -421,7 +421,7 @@ export default function GoogleMapsDashboard() {
                     <h1 className="text-3xl font-extrabold text-slate-900 mb-2">استخبارات خرائط قوقل (Google Maps Leads)</h1>
                     <p className="text-slate-500 text-sm font-medium">البحث الجغرافي واستخراج عملاء المنشآت المحلية وإثراء اتصالاتها تلقائياً</p>
                 </div>
-                <div className="w-12 h-12 rounded-2xl bg-indigo-600/10 flex items-center justify-center text-indigo-600 font-bold text-xl border border-indigo-600/20">
+                <div className="w-12 h-12 rounded-2xl bg-zinc-100 flex items-center justify-center text-black font-bold text-xl border border-zinc-200">
                     <Map size={24} />
                 </div>
             </div>
@@ -430,10 +430,10 @@ export default function GoogleMapsDashboard() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                 {/* Search / Scraper Card */}
                 <div className="bg-white p-6 rounded-[35px] border border-slate-200 shadow-sm relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-600/5 blur-3xl -mr-16 -mt-16 group-hover:bg-indigo-600/10 transition-colors"></div>
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-zinc-100/30 blur-3xl -mr-16 -mt-16 group-hover:bg-zinc-100/50 transition-colors"></div>
                     <div className="relative z-10">
                         <div className="flex items-center gap-3 mb-5">
-                            <div className="w-10 h-10 rounded-xl bg-indigo-600/10 flex items-center justify-center text-indigo-600">
+                            <div className="w-10 h-10 rounded-xl bg-zinc-100 flex items-center justify-center text-black border border-zinc-200">
                                 <MapPin size={20} />
                             </div>
                             <h3 className="text-xl font-bold text-slate-900">الكشط الأولي لخرائط قوقل (Serper Maps)</h3>
@@ -446,7 +446,7 @@ export default function GoogleMapsDashboard() {
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                     placeholder="ابحث جغرافياً (مثال: عيادات أسنان الرياض، مغاسل جدة)..."
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 px-5 pr-11 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-600 transition-all text-sm font-bold"
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 px-5 pr-11 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-all text-sm font-bold"
                                     onKeyDown={(e) => e.key === 'Enter' && startMapsScrape()}
                                 />
                                 <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
@@ -459,7 +459,7 @@ export default function GoogleMapsDashboard() {
                                         value={scrapeLimit}
                                         onChange={(e) => setScrapeLimit(Number(e.target.value))}
                                         placeholder="الحد"
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 px-3 text-center text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600 transition-all text-sm font-bold"
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 px-3 text-center text-slate-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-all text-sm font-bold"
                                         title="الحد الأقصى للعملاء"
                                     />
                                 </div>
@@ -470,7 +470,7 @@ export default function GoogleMapsDashboard() {
                                     variant="primary"
                                     icon={loading ? <Loader2 className="animate-spin" size={18} /> : <Play size={18} />}
                                     label="بدء الاستخراج"
-                                    className="flex-1 justify-center py-3.5 !bg-indigo-600 hover:!bg-indigo-700 text-white rounded-2xl"
+                                    className="flex-1 justify-center py-3.5 !bg-black hover:!bg-zinc-800 text-white rounded-2xl"
                                 />
                                 <ActionButton
                                     onClick={addToWaitingList}
@@ -487,10 +487,10 @@ export default function GoogleMapsDashboard() {
 
                 {/* Enrichment Card */}
                 <div className="bg-white p-6 rounded-[35px] border border-slate-200 shadow-sm relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-teal-500/5 blur-3xl -mr-16 -mt-16 group-hover:bg-teal-500/10 transition-colors"></div>
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-zinc-100/30 blur-3xl -mr-16 -mt-16 group-hover:bg-zinc-100/50 transition-colors"></div>
                     <div className="relative z-10">
                         <div className="flex items-center gap-3 mb-5">
-                            <div className="w-10 h-10 rounded-xl bg-teal-500/10 flex items-center justify-center text-teal-600">
+                            <div className="w-10 h-10 rounded-xl bg-zinc-100 flex items-center justify-center text-black border border-zinc-200">
                                 <Globe size={20} />
                             </div>
                             <h3 className="text-xl font-bold text-slate-900">إثراء اتصالات المواقع ومحركات البحث</h3>
@@ -501,7 +501,7 @@ export default function GoogleMapsDashboard() {
                                 <select
                                     value={selectedSheet}
                                     onChange={(e) => setSelectedSheet(e.target.value)}
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 px-5 pr-9 text-slate-900 appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-600 transition-all cursor-pointer text-sm font-bold"
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 px-5 pr-9 text-slate-900 appearance-none focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-all cursor-pointer text-sm font-bold"
                                 >
                                     <option value="">اختر ورقة البحث لتطويرها وتكثيف قنواتها...</option>
                                     {availableSheets.map(name => (
@@ -530,7 +530,7 @@ export default function GoogleMapsDashboard() {
                 <div className="mb-8 bg-white p-6 rounded-[35px] border border-slate-200 shadow-sm relative overflow-hidden">
                     <div className="flex items-center justify-between mb-6">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-indigo-600/10 flex items-center justify-center text-indigo-600">
+                            <div className="w-10 h-10 rounded-xl bg-zinc-100 flex items-center justify-center text-black border border-zinc-200">
                                 <RotateCcw size={20} className="rotate-180" />
                             </div>
                             <div>
@@ -563,15 +563,15 @@ export default function GoogleMapsDashboard() {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {waitingList.map((item) => (
                             <div key={item.id} className={`p-4 rounded-2xl border transition-all flex items-center justify-between group ${
-                                item.status === 'processing' ? 'border-indigo-500 bg-indigo-50/30' :
-                                item.status === 'completed' ? 'border-teal-200 bg-teal-50/30' :
+                                item.status === 'processing' ? 'border-black bg-zinc-50' :
+                                item.status === 'completed' ? 'border-emerald-200 bg-emerald-50/30' :
                                 item.status === 'failed' ? 'border-rose-200 bg-rose-50/30' :
                                 'border-slate-100 bg-slate-50/30'
                             }`}>
                                 <div className="flex items-center gap-3 overflow-hidden">
                                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                                        item.status === 'processing' ? 'bg-indigo-600 text-white animate-pulse' :
-                                        item.status === 'completed' ? 'bg-teal-500 text-white' :
+                                        item.status === 'processing' ? 'bg-black text-white animate-pulse' :
+                                        item.status === 'completed' ? 'bg-emerald-500 text-white' :
                                         item.status === 'failed' ? 'bg-rose-500 text-white' :
                                         'bg-slate-200 text-slate-500'
                                     }`}>
@@ -605,10 +605,10 @@ export default function GoogleMapsDashboard() {
             {/* Merge Sheets Section */}
             {availableSheets.length > 0 && (
                 <div className="mb-8 bg-white p-6 rounded-[35px] border border-slate-200 shadow-sm relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-teal-500/5 blur-3xl -mr-16 -mt-16 group-hover:bg-teal-500/10 transition-colors"></div>
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-zinc-100/30 blur-3xl -mr-16 -mt-16 group-hover:bg-zinc-100/50 transition-colors"></div>
                     <div className="relative z-10">
                         <div className="flex items-center gap-3 mb-6">
-                            <div className="w-10 h-10 rounded-xl bg-teal-500/10 flex items-center justify-center text-teal-600">
+                            <div className="w-10 h-10 rounded-xl bg-zinc-100 flex items-center justify-center text-black border border-zinc-200">
                                 <Share2 size={20} />
                             </div>
                             <div>
@@ -624,7 +624,7 @@ export default function GoogleMapsDashboard() {
                                     {availableSheets.map(sheet => (
                                         <label key={sheet} className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-all ${
                                             selectedMergeSheets.includes(sheet) 
-                                            ? 'bg-teal-50 border-teal-200 text-teal-700' 
+                                            ? 'bg-zinc-50 border-black text-black' 
                                             : 'bg-white border-slate-100 text-slate-600 hover:border-slate-300'
                                         }`}>
                                             <input 
@@ -637,7 +637,7 @@ export default function GoogleMapsDashboard() {
                                                 }}
                                             />
                                             <div className={`w-4 h-4 rounded border flex items-center justify-center ${
-                                                selectedMergeSheets.includes(sheet) ? 'bg-teal-500 border-teal-500 text-white' : 'border-slate-300'
+                                                selectedMergeSheets.includes(sheet) ? 'bg-black border-black text-white' : 'border-slate-300'
                                             }`}>
                                                 {selectedMergeSheets.includes(sheet) && <Check size={12} strokeWidth={3} />}
                                             </div>
@@ -655,16 +655,16 @@ export default function GoogleMapsDashboard() {
                                         value={targetMergeName}
                                         onChange={(e) => setTargetMergeName(e.target.value)}
                                         placeholder="مثال: مجمع عيادات أسنان قوقل ماب..."
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 px-5 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all text-sm font-bold"
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 px-5 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-all text-sm font-bold"
                                     />
                                 </div>
                                 <ActionButton
                                     onClick={handleMergeSheets}
                                     disabled={isMerging || selectedMergeSheets.length < 1 || !targetMergeName.trim()}
-                                    variant="success"
+                                    variant="primary"
                                     icon={isMerging ? <Loader2 className="animate-spin" size={18} /> : <Share2 size={18} />}
                                     label={isMerging ? "جاري دمج الأوراق..." : "إتمام دمج الأوراق وحذف المكرر"}
-                                    className="w-full justify-center py-4 text-base rounded-2xl text-white bg-teal-600 hover:bg-teal-700 border-none"
+                                    className="w-full justify-center py-4 text-base rounded-2xl text-white bg-black hover:bg-zinc-800 border-none"
                                 />
                             </div>
                         </div>
@@ -674,10 +674,10 @@ export default function GoogleMapsDashboard() {
 
             {/* Live Logs Terminal Panel */}
             {(logs.length > 0 || loading) && (
-                <div className="mb-8 bg-slate-900 rounded-[35px] border border-slate-800 p-6 shadow-2xl relative overflow-hidden font-mono text-xs text-indigo-400">
+                <div className="mb-8 bg-slate-900 rounded-[35px] border border-slate-800 p-6 shadow-2xl relative overflow-hidden font-mono text-xs text-zinc-300">
                     <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
                         <div className="flex items-center gap-2">
-                            <Terminal size={16} className="text-indigo-500" />
+                            <Terminal size={16} className="text-zinc-400" />
                             <span className="font-bold uppercase tracking-wider text-slate-300">وحدة المراقبة الحية لكاشط خرائط قوقل (Live Logs)</span>
                         </div>
                         <div className="flex gap-1">
@@ -759,7 +759,7 @@ export default function GoogleMapsDashboard() {
             <div className="bg-white rounded-[35px] border border-slate-200 overflow-hidden shadow-sm">
                 <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-indigo-600/10 flex items-center justify-center text-indigo-600 font-bold border border-indigo-600/20">
+                        <div className="w-10 h-10 rounded-xl bg-zinc-100 flex items-center justify-center text-black font-bold border border-zinc-200">
                             <MapPin size={20} />
                         </div>
                         <div>
@@ -778,7 +778,7 @@ export default function GoogleMapsDashboard() {
                                         type="checkbox"
                                         checked={selectedLeads.size === filteredResults.length && filteredResults.length > 0}
                                         onChange={toggleSelectAll}
-                                        className="w-4 h-4 rounded-lg border-2 border-slate-300 text-indigo-600 focus:ring-indigo-600 cursor-pointer"
+                                        className="w-4 h-4 rounded-lg border-2 border-slate-300 text-black focus:ring-black cursor-pointer"
                                     />
                                 </th>
                                 <th className="p-4 font-bold">المنشأة والنشاط</th>
@@ -814,7 +814,7 @@ export default function GoogleMapsDashboard() {
                                         <tr
                                             key={globalIdx}
                                             className={`hover:bg-slate-50/50 transition-all group cursor-pointer ${
-                                                isSelected ? 'bg-indigo-50/30 hover:bg-indigo-100/30' : ''
+                                                isSelected ? 'bg-zinc-100/60 hover:bg-zinc-100/80' : ''
                                             }`}
                                             onClick={() => setSelectedLead(lead)}
                                         >
@@ -823,12 +823,12 @@ export default function GoogleMapsDashboard() {
                                                     type="checkbox"
                                                     checked={isSelected}
                                                     onChange={() => toggleSelectLead(globalIdx)}
-                                                    className="w-4 h-4 rounded-lg border-2 border-slate-300 text-indigo-600 focus:ring-indigo-600 cursor-pointer"
+                                                    className="w-4 h-4 rounded-lg border-2 border-slate-300 text-black focus:ring-black cursor-pointer"
                                                 />
                                             </td>
                                             <td className="p-4">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 rounded-xl bg-indigo-600/10 flex items-center justify-center text-indigo-600 font-extrabold text-base border border-indigo-600/20 group-hover:scale-110 transition-transform">
+                                                    <div className="w-10 h-10 rounded-xl bg-zinc-100 flex items-center justify-center text-black font-extrabold text-base border border-zinc-200 group-hover:scale-110 transition-transform">
                                                         {lead.title?.[0] || '📍'}
                                                     </div>
                                                     <div>
@@ -850,7 +850,7 @@ export default function GoogleMapsDashboard() {
                                                         href={lead.mapsUrl}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
-                                                        className="text-[10px] text-indigo-600 hover:underline flex items-center gap-0.5"
+                                                        className="text-[10px] text-black font-bold hover:underline flex items-center gap-0.5"
                                                         onClick={(e) => e.stopPropagation()}
                                                     >
                                                         <MapPin size={10} />
@@ -882,7 +882,7 @@ export default function GoogleMapsDashboard() {
                                                     <a
                                                         href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`}
                                                         target="_blank"
-                                                        className="inline-flex items-center gap-1.5 text-indigo-600 hover:text-indigo-700 text-xs font-bold transition-colors"
+                                                        className="inline-flex items-center gap-1.5 text-black hover:text-zinc-800 underline font-bold text-xs transition-colors"
                                                         onClick={(e) => e.stopPropagation()}
                                                     >
                                                         {lead.website.replace(/^https?:\/\//, '').split('/')[0]}
@@ -958,7 +958,7 @@ export default function GoogleMapsDashboard() {
                         {/* Header */}
                         <div className="sticky top-0 bg-white border-b border-slate-100 p-6 flex items-center justify-between rounded-t-[32px] z-10">
                             <div className="flex items-center gap-4">
-                                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-600 to-indigo-800 flex items-center justify-center text-white font-bold text-2xl shadow-lg shadow-indigo-500/30">
+                                <div className="w-14 h-14 rounded-2xl bg-black flex items-center justify-center text-white font-bold text-2xl border border-zinc-900 shadow-sm">
                                     {selectedLead.title?.[0] || '📍'}
                                 </div>
                                 <div>
@@ -979,7 +979,7 @@ export default function GoogleMapsDashboard() {
                             {/* Address and Google Maps */}
                             <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 space-y-3">
                                 <div className="flex items-center gap-3">
-                                    <MapPin size={18} className="text-indigo-600" />
+                                    <MapPin size={18} className="text-black" />
                                     <span className="text-sm font-bold text-slate-700">الموقع الجغرافي والعنوان</span>
                                 </div>
                                 <p className="text-slate-800 text-sm font-semibold">{selectedLead.address}</p>
@@ -989,14 +989,14 @@ export default function GoogleMapsDashboard() {
                                         <span className="font-bold">تقييم قوقل: {selectedLead.rating || 0}</span>
                                     </div>
                                     <div className="flex items-center gap-1.5 text-xs text-slate-700 bg-white px-3 py-1.5 rounded-lg border border-slate-200">
-                                        <Star size={14} className="text-indigo-500 fill-indigo-100" />
+                                        <Star size={14} className="text-zinc-500 fill-zinc-100" />
                                         <span className="font-bold">المراجعات: {selectedLead.reviewsCount || 0} مراجع</span>
                                     </div>
                                     <a
                                         href={selectedLead.mapsUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-1.5 text-indigo-600 hover:text-indigo-700 text-xs font-bold bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100 transition-colors"
+                                        className="inline-flex items-center gap-1.5 text-black hover:text-zinc-800 text-xs font-bold bg-zinc-100 px-3 py-1.5 rounded-lg border border-zinc-200 transition-colors"
                                     >
                                         فتح خرائط قوقل
                                         <ExternalLink size={14} />
@@ -1015,7 +1015,7 @@ export default function GoogleMapsDashboard() {
                                         href={selectedLead.website.startsWith('http') ? selectedLead.website : `https://${selectedLead.website}`}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-2 text-indigo-600 hover:text-indigo-700 font-bold transition-colors"
+                                        className="inline-flex items-center gap-2 text-black hover:text-zinc-800 underline font-bold transition-colors"
                                     >
                                         {selectedLead.website.replace(/^https?:\/\//, '')}
                                         <ExternalLink size={16} />
@@ -1086,7 +1086,7 @@ export default function GoogleMapsDashboard() {
                                     value={leadNotes[selectedLead.mapsUrl] || ''}
                                     onChange={(e) => setLeadNotes(prev => ({ ...prev, [selectedLead.mapsUrl]: e.target.value }))}
                                     placeholder="أضف ملاحظات تفصيلية أو إجراء تواصل حول هذه المنشأة..."
-                                    className="w-full bg-white border border-slate-200 rounded-xl p-4 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-600 transition-all min-h-[100px] text-sm"
+                                    className="w-full bg-white border border-slate-200 rounded-xl p-4 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-all min-h-[100px] text-sm"
                                 />
                             </div>
                         </div>
@@ -1100,7 +1100,7 @@ export default function GoogleMapsDashboard() {
                                     icon={<ExternalLink size={18} />}
                                     label="زيارة الموقع"
                                     onClick={() => window.open(selectedLead.website.startsWith('http') ? selectedLead.website : `https://${selectedLead.website}`, '_blank')}
-                                    className="!bg-indigo-600 hover:!bg-indigo-700 text-white rounded-2xl"
+                                    className="!bg-black hover:!bg-zinc-800 text-white rounded-2xl"
                                 />
                             )}
                         </div>
@@ -1133,13 +1133,13 @@ function BulkActionsToolbarCustom({
     return (
         <div className="mb-6 bg-slate-900 text-white p-4 rounded-[24px] border border-slate-800 shadow-xl flex items-center justify-between animate-in" dir="rtl">
             <div className="flex items-center gap-3">
-                <span className="bg-indigo-600 text-white text-xs font-black px-2.5 py-1 rounded-full">{selectedCount}</span>
+                <span className="bg-white text-black text-xs font-black px-2.5 py-1 rounded-full">{selectedCount}</span>
                 <span className="text-xs font-bold text-slate-300">منشأة محددة لإجراء عملية جماعية</span>
             </div>
             <div className="flex items-center gap-2">
                 <button
                     onClick={onExport}
-                    className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all"
+                    className="flex items-center gap-1.5 bg-white hover:bg-zinc-200 text-black text-xs font-black px-4 py-2 rounded-xl transition-all"
                 >
                     <Download size={14} />
                     تصدير المحدد

@@ -52,7 +52,7 @@ export default function HistoryPage() {
                 </div>
                 <div className="bg-white p-5 rounded-2xl border border-slate-200">
                     <div className="flex items-center gap-3 mb-3">
-                        <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center text-orange-600">
+                        <div className="w-10 h-10 rounded-xl bg-zinc-100 flex items-center justify-center text-black border border-zinc-200">
                             <Clock size={18} />
                         </div>
                         <span className="text-sm font-bold text-slate-500">متوسط الوقت</span>
@@ -62,7 +62,7 @@ export default function HistoryPage() {
                 </div>
                 <div className="bg-white p-5 rounded-2xl border border-slate-200">
                     <div className="flex items-center gap-3 mb-3">
-                        <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
+                        <div className="w-10 h-10 rounded-xl bg-zinc-100 flex items-center justify-center text-black border border-zinc-200">
                             <History size={18} />
                         </div>
                         <span className="text-sm font-bold text-slate-500">الإجمالي</span>
@@ -81,11 +81,7 @@ export default function HistoryPage() {
                     {mockHistory.map((item) => (
                         <div key={item.id} className="p-5 flex items-center justify-between hover:bg-slate-50 transition-colors">
                             <div className="flex items-center gap-4">
-                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                                    item.type === 'Google Search' ? 'bg-blue-50 text-blue-600' :
-                                    item.type === 'Mahally' ? 'bg-orange-50 text-orange-600' :
-                                    'bg-emerald-50 text-emerald-600'
-                                }`}>
+                                <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-zinc-100 text-black border border-zinc-200">
                                     <History size={20} />
                                 </div>
                                 <div>

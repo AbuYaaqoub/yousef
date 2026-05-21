@@ -11,13 +11,13 @@ interface SocialIconProps {
 
 export function SocialIcon({ href, color, label, size = 'sm' }: SocialIconProps) {
     const colors = {
-        emerald: 'bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100 hover:-translate-y-0.5',
-        pink: 'bg-pink-50 text-pink-600 border-pink-100 hover:bg-pink-100 hover:-translate-y-0.5',
-        slate: 'bg-slate-50 text-slate-600 border-slate-100 hover:bg-slate-100 hover:-translate-y-0.5',
-        blue: 'bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-100 hover:-translate-y-0.5',
-        red: 'bg-red-50 text-red-600 border-red-100 hover:bg-red-100 hover:-translate-y-0.5',
-        yellow: 'bg-yellow-50 text-yellow-600 border-yellow-100 hover:bg-yellow-100 hover:-translate-y-0.5',
-        sky: 'bg-sky-50 text-sky-600 border-sky-100 hover:bg-sky-100 hover:-translate-y-0.5',
+        emerald: 'bg-zinc-50 text-zinc-700 border-zinc-200 hover:bg-black hover:text-white hover:border-black hover:-translate-y-0.5',
+        pink: 'bg-zinc-50 text-zinc-700 border-zinc-200 hover:bg-black hover:text-white hover:border-black hover:-translate-y-0.5',
+        slate: 'bg-zinc-50 text-zinc-700 border-zinc-200 hover:bg-black hover:text-white hover:border-black hover:-translate-y-0.5',
+        blue: 'bg-zinc-50 text-zinc-700 border-zinc-200 hover:bg-black hover:text-white hover:border-black hover:-translate-y-0.5',
+        red: 'bg-zinc-50 text-zinc-700 border-zinc-200 hover:bg-black hover:text-white hover:border-black hover:-translate-y-0.5',
+        yellow: 'bg-zinc-50 text-zinc-700 border-zinc-200 hover:bg-black hover:text-white hover:border-black hover:-translate-y-0.5',
+        sky: 'bg-zinc-50 text-zinc-700 border-zinc-200 hover:bg-black hover:text-white hover:border-black hover:-translate-y-0.5',
     };
 
     const sizes = {

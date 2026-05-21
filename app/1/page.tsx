@@ -361,7 +361,7 @@ export default function Dashboard() {
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `sallahunter_leads_${new Date().toISOString().split('T')[0]}.xlsx`;
+            a.download = `naqeeb_leads_${new Date().toISOString().split('T')[0]}.xlsx`;
             a.click();
         });
     };
@@ -448,7 +448,7 @@ export default function Dashboard() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                 {/* Google Search Card */}
                 <div className="bg-white p-6 rounded-[28px] border border-slate-200 shadow-sm relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 blur-3xl -mr-16 -mt-16 group-hover:bg-orange-500/10 transition-colors"></div>
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-zinc-500/5 blur-3xl -mr-16 -mt-16 group-hover:bg-zinc-500/10 transition-colors"></div>
                     <div className="relative z-10">
                         <div className="flex items-center gap-3 mb-5">
                             <div className="w-10 h-10 rounded-xl bg-slate-900/5 flex items-center justify-center text-slate-900">
@@ -464,7 +464,7 @@ export default function Dashboard() {
                                     value={manualUrl}
                                     onChange={(e) => setManualUrl(e.target.value)}
                                     placeholder="رابط متجر محدد لفحصه..."
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3.5 px-5 pr-11 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all text-sm"
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3.5 px-5 pr-11 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-all text-sm"
                                 />
                                 <ExternalLink className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                             </div>
@@ -473,7 +473,7 @@ export default function Dashboard() {
                                 <select
                                     value={selectedSheet}
                                     onChange={(e) => setSelectedSheet(e.target.value)}
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3.5 px-5 pr-9 text-slate-900 appearance-none focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all cursor-pointer text-sm"
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3.5 px-5 pr-9 text-slate-900 appearance-none focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-all cursor-pointer text-sm"
                                 >
                                     <option value="">اختر تصنيف للبحث...</option>
                                     {availableSheets.map(name => (
@@ -501,7 +501,7 @@ export default function Dashboard() {
                     <div className="absolute top-0 right-0 w-32 h-32 bg-slate-900/5 blur-3xl -mr-16 -mt-16 group-hover:bg-slate-900/10 transition-colors"></div>
                     <div className="relative z-10">
                         <div className="flex items-center gap-3 mb-5">
-                            <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-600">
+                            <div className="w-10 h-10 rounded-xl bg-zinc-500/10 flex items-center justify-center text-zinc-800">
                                 <Store size={20} />
                             </div>
                             <h3 className="text-xl font-bold text-slate-900">استخراج أولي (Mahally)</h3>
@@ -514,7 +514,7 @@ export default function Dashboard() {
                                     value={mahallyQuery}
                                     onChange={(e) => setMahallyQuery(e.target.value)}
                                     placeholder="ابحث عن منتج (مثال: بخور، فساتين)..."
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3.5 px-5 pr-11 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 transition-all text-sm"
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3.5 px-5 pr-11 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-all text-sm"
                                     onKeyDown={(e) => e.key === 'Enter' && startMahallyScrape()}
                                 />
                                 <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
@@ -559,7 +559,7 @@ export default function Dashboard() {
                 <div className="mb-8 bg-white p-6 rounded-[28px] border border-slate-200 shadow-sm relative overflow-hidden">
                     <div className="flex items-center justify-between mb-6">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-600">
+                            <div className="w-10 h-10 rounded-xl bg-zinc-500/10 flex items-center justify-center text-zinc-800">
                                 <RotateCcw size={20} className="rotate-180" />
                             </div>
                             <div>
@@ -590,14 +590,14 @@ export default function Dashboard() {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {waitingList.map((item) => (
                             <div key={item.id} className={`p-4 rounded-2xl border transition-all flex items-center justify-between group ${
-                                item.status === 'processing' ? 'border-orange-500 bg-orange-50/30' :
+                                item.status === 'processing' ? 'border-black bg-zinc-50' :
                                 item.status === 'completed' ? 'border-emerald-200 bg-emerald-50/30' :
                                 item.status === 'failed' ? 'border-rose-200 bg-rose-50/30' :
                                 'border-slate-100 bg-slate-50/30'
                             }`}>
                                 <div className="flex items-center gap-3 overflow-hidden">
                                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                                        item.status === 'processing' ? 'bg-orange-500 text-white animate-pulse' :
+                                        item.status === 'processing' ? 'bg-black text-white animate-pulse' :
                                         item.status === 'completed' ? 'bg-emerald-500 text-white' :
                                         item.status === 'failed' ? 'bg-rose-500 text-white' :
                                         'bg-slate-200 text-slate-500'
@@ -632,10 +632,10 @@ export default function Dashboard() {
             {/* Merge Sheets Section (المجمع) */}
             {availableSheets.length > 0 && (
                 <div className="mb-8 bg-white p-6 rounded-[28px] border border-slate-200 shadow-sm relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 blur-3xl -mr-16 -mt-16 group-hover:bg-emerald-500/10 transition-colors"></div>
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-zinc-500/5 blur-3xl -mr-16 -mt-16 group-hover:bg-zinc-500/10 transition-colors"></div>
                     <div className="relative z-10">
                         <div className="flex items-center gap-3 mb-6">
-                            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600">
+                            <div className="w-10 h-10 rounded-xl bg-zinc-500/10 flex items-center justify-center text-zinc-800">
                                 <Share2 size={20} />
                             </div>
                             <div>
@@ -651,7 +651,7 @@ export default function Dashboard() {
                                     {availableSheets.map(sheet => (
                                         <label key={sheet} className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-all ${
                                             selectedMergeSheets.includes(sheet) 
-                                            ? 'bg-emerald-50 border-emerald-200 text-emerald-700' 
+                                            ? 'bg-zinc-100 border-zinc-300 text-zinc-900 font-extrabold' 
                                             : 'bg-white border-slate-100 text-slate-600 hover:border-slate-300'
                                         }`}>
                                             <input 
@@ -664,7 +664,7 @@ export default function Dashboard() {
                                                 }}
                                             />
                                             <div className={`w-4 h-4 rounded border flex items-center justify-center ${
-                                                selectedMergeSheets.includes(sheet) ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300'
+                                                selectedMergeSheets.includes(sheet) ? 'bg-black border-black text-white' : 'border-slate-300'
                                             }`}>
                                                 {selectedMergeSheets.includes(sheet) && <Check size={12} strokeWidth={3} />}
                                             </div>
@@ -682,13 +682,13 @@ export default function Dashboard() {
                                         value={targetMergeName}
                                         onChange={(e) => setTargetMergeName(e.target.value)}
                                         placeholder="مثال: المجمع الشامل، دمج عطور وبخور..."
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3.5 px-5 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-sm"
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3.5 px-5 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-all text-sm"
                                     />
                                 </div>
                                 <ActionButton
                                     onClick={handleMergeSheets}
                                     disabled={isMerging || selectedMergeSheets.length < 1 || !targetMergeName.trim()}
-                                    variant="success"
+                                    variant="primary"
                                     icon={isMerging ? <Loader2 className="animate-spin" size={18} /> : <Share2 size={18} />}
                                     label={isMerging ? "جاري الدمج..." : "بدء عملية الدمج"}
                                     className="w-full justify-center py-4 text-base"
@@ -794,7 +794,7 @@ export default function Dashboard() {
                                         type="checkbox"
                                         checked={selectedLeads.size === filteredResults.length && filteredResults.length > 0}
                                         onChange={toggleSelectAll}
-                                        className="w-4 h-4 rounded-lg border-2 border-slate-300 text-orange-600 focus:ring-orange-500 cursor-pointer"
+                                        className="w-4 h-4 rounded-lg border-2 border-slate-300 text-black focus:ring-black cursor-pointer"
                                     />
                                 </th>
                                 <th className="p-4 font-bold">المتجر</th>
@@ -828,7 +828,7 @@ export default function Dashboard() {
                                         <tr
                                             key={globalIdx}
                                             className={`hover:bg-slate-50 transition-all group cursor-pointer ${
-                                                isSelected ? 'bg-orange-50 hover:bg-orange-100' : ''
+                                                isSelected ? 'bg-zinc-100 hover:bg-zinc-200/80' : ''
                                             }`}
                                             onClick={() => setSelectedLead(lead)}
                                         >
@@ -837,12 +837,12 @@ export default function Dashboard() {
                                                     type="checkbox"
                                                     checked={isSelected}
                                                     onChange={() => toggleSelectLead(globalIdx)}
-                                                    className="w-4 h-4 rounded-lg border-2 border-slate-300 text-orange-600 focus:ring-orange-500 cursor-pointer"
+                                                    className="w-4 h-4 rounded-lg border-2 border-slate-300 text-black focus:ring-black cursor-pointer"
                                                 />
                                             </td>
                                             <td className="p-4">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-600 font-bold text-lg border border-orange-500/20 group-hover:scale-110 transition-transform">
+                                                    <div className="w-10 h-10 rounded-xl bg-zinc-50 text-black border border-zinc-200 font-bold text-lg group-hover:scale-110 transition-transform flex items-center justify-center">
                                                         {lead.storeName?.[0] || 'S'}
                                                     </div>
                                                     <div>
@@ -878,7 +878,7 @@ export default function Dashboard() {
                                                     <a
                                                         href={lead.domain.startsWith('http') ? lead.domain : `https://${lead.domain}`}
                                                         target="_blank"
-                                                        className="inline-flex items-center gap-1.5 text-orange-600 hover:text-orange-700 text-xs font-bold transition-colors"
+                                                        className="inline-flex items-center gap-1.5 text-zinc-900 hover:text-black text-xs font-extrabold transition-colors underline decoration-zinc-300 hover:decoration-black"
                                                     >
                                                         {lead.domain.replace(/^https?:\/\//, '')}
                                                         <ExternalLink size={12} />
@@ -902,7 +902,7 @@ export default function Dashboard() {
                                                 <span className={`inline-flex px-3 py-1.5 rounded-full text-xs font-bold border ${
                                                     lead.rating === '🟢 قوي' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
                                                     lead.rating === '🟡 متوسط' ? 'bg-yellow-50 text-yellow-600 border-yellow-100' :
-                                                    lead.rating?.includes('محلي') ? 'bg-blue-50 text-blue-600 border-blue-100' :
+                                                    lead.rating?.includes('محلي') ? 'bg-zinc-100 text-zinc-800 border-zinc-200' :
                                                     'bg-rose-50 text-rose-600 border-rose-100'
                                                 }`}>
                                                     {lead.rating ? lead.rating.replace(/^🟢|🟡|🔴 /, '') : 'غير محدد'}

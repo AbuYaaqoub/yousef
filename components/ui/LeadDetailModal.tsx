@@ -58,7 +58,7 @@ export function LeadDetailModal({ lead, onClose }: LeadDetailModalProps) {
                 {/* Header */}
                 <div className="sticky top-0 bg-white border-b border-slate-100 p-6 flex items-center justify-between rounded-t-[32px]">
                     <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center text-white font-bold text-2xl shadow-lg shadow-orange-500/30">
+                        <div className="w-14 h-14 rounded-2xl bg-black flex items-center justify-center text-white font-bold text-2xl border border-zinc-900">
                             {lead.storeName?.[0] || 'S'}
                         </div>
                         <div>
@@ -93,7 +93,7 @@ export function LeadDetailModal({ lead, onClose }: LeadDetailModalProps) {
                                 href={lead.domain.startsWith('http') ? lead.domain : `https://${lead.domain}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="inline-flex items-center gap-2 text-orange-600 hover:text-orange-700 font-bold transition-colors"
+                                className="inline-flex items-center gap-2 text-black hover:text-zinc-800 underline font-bold transition-colors"
                             >
                                 {lead.domain.replace(/^https?:\/\//, '')}
                                 <ExternalLink size={16} />
@@ -109,7 +109,7 @@ export function LeadDetailModal({ lead, onClose }: LeadDetailModalProps) {
                         </div>
                         <div className="space-y-3">
                             {lead.email && (
-                                <div className="flex items-center gap-3 bg-white p-3 rounded-xl border border-slate-200 group hover:border-orange-300 transition-colors">
+                                <div className="flex items-center gap-3 bg-white p-3 rounded-xl border border-slate-200 group hover:border-black transition-colors">
                                     <Mail size={16} className="text-slate-400" />
                                     <span className="text-slate-700 font-mono text-sm flex-1 truncate">{lead.email}</span>
                                     <button
@@ -121,7 +121,7 @@ export function LeadDetailModal({ lead, onClose }: LeadDetailModalProps) {
                                 </div>
                             )}
                             {lead.phone && (
-                                <div className="flex items-center gap-3 bg-white p-3 rounded-xl border border-slate-200 group hover:border-orange-300 transition-colors">
+                                <div className="flex items-center gap-3 bg-white p-3 rounded-xl border border-slate-200 group hover:border-black transition-colors">
                                     <Phone size={16} className="text-slate-400" />
                                     <span className="text-slate-700 font-mono text-sm" dir="ltr">{lead.phone}</span>
                                     <button
@@ -169,7 +169,7 @@ export function LeadDetailModal({ lead, onClose }: LeadDetailModalProps) {
                             value={notes}
                             onChange={(e) => setNotes(e.target.value)}
                             placeholder="أضف ملاحظات حول هذا المتجر..."
-                            className="w-full bg-white border border-slate-200 rounded-xl p-4 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all min-h-[100px] text-sm"
+                            className="w-full bg-white border border-slate-200 rounded-xl p-4 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-all min-h-[100px] text-sm"
                         />
                     </div>
                 </div>
