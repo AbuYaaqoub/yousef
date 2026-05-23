@@ -1,0 +1,22 @@
+{
+  "name": "semrush-smart-copier",
+  "version": "1.0.0",
+  "description": "Chrome extension to copy SEMrush tables nicely to Excel",
+  "main": "content/index.js",
+  "scripts": {
+    "build": "esbuild src/content/index.ts --bundle --outfile=content/index.js --minify",
+    "watch": "esbuild src/content/index.ts --bundle --outfile=content/index.js --watch"
+  },
+  "keywords": [
+    "semrush",
+    "excel",
+    "copier",
+    "chrome-extension"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "esbuild": "^0.20.2",
+    "typescript": "^5.4.5"
+  }
+}

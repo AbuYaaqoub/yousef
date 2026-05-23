@@ -1,71 +1,46 @@
 import { NextResponse } from 'next/server';
-import path from 'path';
-import fs from 'fs';
-import * as ExcelJS from 'exceljs';
+import { supabase } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-    const stats = {
-        sallaLeads: 0,
-        mazeedLeads: 0,
-        mapsLeads: 0,
-        totalLeads: 0,
-        sallaSheets: 0,
-        mazeedSheets: 0,
-        mapsSheets: 0
-    };
-
     try {
-        const sallaPath = path.join(process.cwd(), 'Mahally_Leads.xlsx');
-        const mazeedPath = path.join(process.cwd(), 'Mazeed_Leads.xlsx');
-        const mapsPath = path.join(process.cwd(), 'Google_Maps_Leads.xlsx');
+        // الاستعلام عن الفئات لجميع المصادر في نفس الوقت
+        const [
+            mahallyRes,
+            mazeedRes,
+            mapsRes
+        ] = await Promise.all([
+            supabase.from('leads').select('category').eq('source', 'mahally'),
+            supabase.from('leads').select('category').eq('source', 'mazeed'),
+            supabase.from('leads').select('category').eq('source', 'maps')
+        ]);
 
-        // Helper to count sheets and actual leads (rows minus header)
-        const getFileStats = async (filePath: string) => {
-            if (!fs.existsSync(filePath)) {
-                return { sheets: 0, rows: 0 };
-            }
-            
-            const workbook = new ExcelJS.Workbook();
-            try {
-                await workbook.xlsx.readFile(filePath);
-                let rowsCount = 0;
-                
-                workbook.worksheets.forEach(sheet => {
-                    let sheetRows = 0;
-                    sheet.eachRow((row, rowNumber) => {
-                        // Count rows that have actual cell values, skipping the header (row 1)
-                        if (rowNumber > 1 && row.values && (row.values as any[]).length > 0) {
-                            sheetRows++;
-                        }
-                    });
-                    rowsCount += sheetRows;
-                });
+        if (mahallyRes.error) throw mahallyRes.error;
+        if (mazeedRes.error) throw mazeedRes.error;
+        if (mapsRes.error) throw mapsRes.error;
 
-                return { 
-                    sheets: workbook.worksheets.length, 
-                    rows: rowsCount 
-                };
-            } catch (err) {
-                console.error(`⚠️ Error reading Excel file at ${filePath}:`, err);
-                return { sheets: 0, rows: 0 };
-            }
+        const mahallyLeads = mahallyRes.data || [];
+        const mazeedLeads = mazeedRes.data || [];
+        const mapsLeads = mapsRes.data || [];
+
+        const sallaLeads = mahallyLeads.length;
+        const mazeedLeadsCount = mazeedLeads.length;
+        const mapsLeadsCount = mapsLeads.length;
+
+        const sallaSheets = Array.from(new Set(mahallyLeads.map(item => item.category).filter(Boolean))).length;
+        const mazeedSheets = Array.from(new Set(mazeedLeads.map(item => item.category).filter(Boolean))).length;
+        const mapsSheets = Array.from(new Set(mapsLeads.map(item => item.category).filter(Boolean))).length;
+
+        const stats = {
+            sallaLeads,
+            mazeedLeads: mazeedLeadsCount,
+            mapsLeads: mapsLeadsCount,
+            totalLeads: sallaLeads + mazeedLeadsCount + mapsLeadsCount,
+            sallaSheets,
+            mazeedSheets,
+            mapsSheets
         };
-
-        const sallaFileStats = await getFileStats(sallaPath);
-        stats.sallaLeads = sallaFileStats.rows;
-        stats.sallaSheets = sallaFileStats.sheets;
-
-        const mazeedFileStats = await getFileStats(mazeedPath);
-        stats.mazeedLeads = mazeedFileStats.rows;
-        stats.mazeedSheets = mazeedFileStats.sheets;
-
-        const mapsFileStats = await getFileStats(mapsPath);
-        stats.mapsLeads = mapsFileStats.rows;
-        stats.mapsSheets = mapsFileStats.sheets;
-
-        stats.totalLeads = stats.sallaLeads + stats.mazeedLeads + stats.mapsLeads;
 
         return NextResponse.json({ 
             success: true, 

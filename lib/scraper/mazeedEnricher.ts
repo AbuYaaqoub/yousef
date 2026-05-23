@@ -3,32 +3,54 @@ import path from 'path';
 import fs from 'fs';
 import axios from 'axios';
 import { extractFromHomepage } from './extractStoreInfo';
+import { supabase } from '../supabase';
+import { calculateRating } from '../leadScoring';
 
-const INPUT_FILE = path.join(process.cwd(), 'Mazeed_Leads.xlsx');
 const OUTPUT_FILE = path.join(process.cwd(), 'Final_Stores_Data.xlsx');
 
 export async function enrichMazeedData(targetSheetName?: string) {
-    console.log(`📂 Checking for Mazeed input file at: ${INPUT_FILE}`);
-    
-    if (!fs.existsSync(INPUT_FILE)) {
-        console.error('❌ Mazeed Input file not found!');
-        throw new Error(`لم يتم العثور على ملف Mazeed_Leads.xlsx في ${INPUT_FILE}`);
-    }
+    console.log(`📂 Starting Mazeed enrichment process via Supabase...`);
 
     const apiKey = process.env.SERPER_API_KEY;
     if (!apiKey) {
         throw new Error('⚠️ Serper.dev API key missing. Please check your .env file.');
     }
 
-    const inputWorkbook = new ExcelJS.Workbook();
-    await inputWorkbook.xlsx.readFile(INPUT_FILE);
-    
-    const outputWorkbook = new ExcelJS.Workbook();
-    if (fs.existsSync(OUTPUT_FILE)) {
-        await outputWorkbook.xlsx.readFile(OUTPUT_FILE);
+    // 1. جلب البيانات غير المثرية من Supabase
+    let dbQuery = supabase
+        .from('leads')
+        .select('*')
+        .eq('source', 'mazeed')
+        .eq('is_enriched', false);
+
+    if (targetSheetName) {
+        dbQuery = dbQuery.eq('category', targetSheetName);
     }
 
-    // اسم ورقة العمل النهائية
+    const { data: storesToProcess, error: dbError } = await dbQuery;
+
+    if (dbError) {
+        console.error('❌ Supabase Query Error:', dbError);
+        throw new Error(`تعذر جلب البيانات من Supabase: ${dbError.message}`);
+    }
+
+    if (!storesToProcess || storesToProcess.length === 0) {
+        console.log('📝 No unenriched Mazeed stores found in Supabase.');
+        return [];
+    }
+
+    console.log(`📝 Found ${storesToProcess.length} Mazeed stores to process for category [${targetSheetName || 'All'}].`);
+
+    // إعداد ملف إكسل كنسخة احتياطية
+    const outputWorkbook = new ExcelJS.Workbook();
+    if (fs.existsSync(OUTPUT_FILE)) {
+        try {
+            await outputWorkbook.xlsx.readFile(OUTPUT_FILE);
+        } catch (e) {
+            console.warn('Could not read local final excel backup, starting fresh.');
+        }
+    }
+
     const finalSheetName = targetSheetName ? `مزيد - ${targetSheetName}`.substring(0, 30) : 'مزيد - نتائج عامة';
     let worksheet = outputWorkbook.getWorksheet(finalSheetName);
 
@@ -47,23 +69,7 @@ export async function enrichMazeedData(targetSheetName?: string) {
         worksheet.getRow(1).font = { bold: true };
     }
 
-    const storesToProcess: any[] = [];
-    inputWorkbook.eachSheet(sheet => {
-        if (!targetSheetName || sheet.name === targetSheetName) {
-            sheet.eachRow((row, rowNumber) => {
-                if (rowNumber > 1) {
-                    const name = row.getCell(1).value?.toString();
-                    const url = row.getCell(2).value?.toString();
-                    const desc = row.getCell(3).value?.toString();
-                    if (name) storesToProcess.push({ name, mazeedUrl: url, desc: desc || '' });
-                }
-            });
-        }
-    });
-
-    console.log(`📝 Found ${storesToProcess.length} Mazeed stores to process for sheet [${finalSheetName}].`);
-
-    // قراءة الروابط الموجودة حالياً لتجنب التكرار
+    // قراءة الروابط الموجودة حالياً لتجنب التكرار في الورقة المحددة
     const existingWebsites = new Set<string>();
     worksheet.eachRow((row, rowNumber) => {
         if (rowNumber > 1) {
@@ -75,11 +81,11 @@ export async function enrichMazeedData(targetSheetName?: string) {
     const results = [];
 
     for (const store of storesToProcess) {
-        console.log(`\n🔎 Searching for: ${store.name}...`);
+        console.log(`\n🔎 Searching for: ${store.store_name}...`);
         
         try {
             // البحث عن المتجر المدعوم من زد
-            const searchQuery = `"${store.name}" متجر زد OR site:zid.store OR site:zid.sa`;
+            const searchQuery = `"${store.store_name}" متجر زد OR site:zid.store OR site:zid.sa`;
 
             const response = await axios.post('https://google.serper.dev/search', {
                 q: searchQuery,
@@ -115,7 +121,12 @@ export async function enrichMazeedData(targetSheetName?: string) {
 
             if (firstResultUrl) {
                 if (existingWebsites.has(firstResultUrl)) {
-                    console.log(`⏩ Store already enriched: ${store.name}`);
+                    console.log(`⏩ Store already enriched in Excel: ${store.store_name}`);
+                    // نقوم فقط بتحديث حالة الحفظ في Supabase كـ enriched لتجنب التكرار في المستقبل
+                    await supabase
+                        .from('leads')
+                        .update({ is_enriched: true, website: firstResultUrl })
+                        .eq('id', store.id);
                     continue;
                 }
 
@@ -123,34 +134,73 @@ export async function enrichMazeedData(targetSheetName?: string) {
                 
                 try {
                     const info = await extractFromHomepage(firstResultUrl);
+                    const rating = calculateRating(info);
+
                     const finalData = {
-                        storeName: store.name,
+                        website: firstResultUrl,
+                        email: info.email || '',
+                        phone: info.phone || info.whatsapp || '',
+                        whatsapp: info.whatsapp || '',
+                        instagram: info.instagram || '',
+                        tiktok: info.tiktok || '',
+                        snapchat: info.snapchat || '',
+                        twitter: info.twitter || '',
+                        facebook: info.facebook || '',
+                        youtube: info.youtube || '',
+                        rating: rating,
+                        is_enriched: true
+                    };
+
+                    // تحديث السجل في Supabase
+                    const { error: updateError } = await supabase
+                        .from('leads')
+                        .update(finalData)
+                        .eq('id', store.id);
+
+                    if (updateError) {
+                        console.error(`❌ Supabase update error for ${store.store_name}:`, updateError);
+                    } else {
+                        console.log(`💾 Saved ${store.store_name} to Supabase`);
+                    }
+
+                    const excelRow = {
+                        storeName: store.store_name,
                         website: firstResultUrl,
                         email: info.email || '',
                         phone: info.phone || info.whatsapp || '',
                         instagram: info.instagram || '',
                         tiktok: info.tiktok || '',
                         snapchat: info.snapchat || '',
-                        mazeedUrl: store.mazeedUrl
+                        mazeedUrl: store.store_url || ''
                     };
 
-                    worksheet.addRow(finalData);
-                    results.push(finalData);
+                    results.push(excelRow);
+                    worksheet.addRow(excelRow);
                     existingWebsites.add(firstResultUrl);
                     
-                    await outputWorkbook.xlsx.writeFile(OUTPUT_FILE);
-                    console.log(`💾 Saved ${store.name} to Final Excel [${finalSheetName}]`);
+                    // محاولة تحديث النسخة الاحتياطية في إكسل بأمان
+                    try {
+                        await outputWorkbook.xlsx.writeFile(OUTPUT_FILE);
+                    } catch (err) {
+                        // ignore excel writing lock
+                    }
+
                 } catch (e: any) {
-                    console.error(`❌ Extraction error for ${store.name}:`, e.message);
+                    console.error(`❌ Extraction error for ${store.store_name}:`, e.message);
                 }
             } else {
-                console.log(`⚠️ No website found for ${store.name}`);
+                console.log(`⚠️ No website found for ${store.store_name}`);
+                // تحديث المتجر في السيرفر لجعله مثرى لتجنب تكراره بلا فائدة
+                await supabase
+                    .from('leads')
+                    .update({ is_enriched: true })
+                    .eq('id', store.id);
             }
 
             await new Promise(resolve => setTimeout(resolve, 500));
 
         } catch (err: any) {
-            console.error(`❌ API Search Error for ${store.name}:`, err.message);
+            console.error(`❌ API Search Error for ${store.store_name}:`, err.message);
         }
     }
 

@@ -4,6 +4,7 @@ import { extractFromHomepage } from '@/lib/scraper/extractStoreInfo';
 import { calculateRating } from '@/lib/leadScoring';
 import { appendToGoogleSheets } from '@/lib/sheets/googleSheets';
 import { StoreLead } from '@/types';
+import { supabase } from '@/lib/supabase';
 
 let abortController: AbortController | null = null;
 
@@ -17,6 +18,27 @@ export async function POST(req: NextRequest) {
 
     abortController = new AbortController();
     const signal = abortController.signal;
+
+    // 1. تسجيل العملية في سجل العمليات بـ Supabase
+    let historyId: string | null = null;
+    const currentQuery = targetUrl ? `رابط مباشر: ${targetUrl}` : searchQuery || 'البحث العام عن متاجر سلة';
+    try {
+        const { data: historyData, error: historyError } = await supabase
+            .from('scraping_history')
+            .insert({
+                type: 'Google Search',
+                query: currentQuery,
+                results_count: 0,
+                status: 'processing'
+            })
+            .select()
+            .single();
+        
+        if (historyError) console.error('Supabase history error:', historyError);
+        if (historyData) historyId = historyData.id;
+    } catch (err) {
+        console.error('Failed to create history record:', err);
+    }
 
     try {
         // 1. البحث أو استخدام الرابط المباشر
@@ -76,15 +98,93 @@ export async function POST(req: NextRequest) {
             results.push(...filteredLeads);
         }
 
-        // 3. حفظ في Google Sheets
-        if (results.length) await appendToGoogleSheets(results);
+        if (signal.aborted) {
+            if (historyId) {
+                await supabase
+                    .from('scraping_history')
+                    .update({ status: 'failed', error_message: 'Cancelled by user' })
+                    .eq('id', historyId);
+            }
+            return NextResponse.json({ success: false, message: 'Cancelled' });
+        }
+
+        // 3. حفظ في Supabase
+        if (results.length) {
+            const leadsToInsert = results.map(item => ({
+                store_name: item.storeName,
+                store_url: item.domain || '',
+                sub_text: 'تم استخراجه وتصنيفه عبر البحث المباشر ومستخلص المتجر الويب',
+                source: 'google_scrape',
+                category: searchQuery || 'البحث العام',
+                rating: item.rating || '🟡 متوسط',
+                is_enriched: true,
+                email: item.email || '',
+                phone: item.phone || '',
+                whatsapp: item.whatsapp || '',
+                instagram: item.instagram || '',
+                tiktok: item.tiktok || '',
+                snapchat: item.snapchat || '',
+                twitter: item.twitter || '',
+                facebook: item.facebook || '',
+                youtube: item.youtube || '',
+                website: item.domain || ''
+            }));
+
+            const { error: upsertError } = await supabase
+                .from('leads')
+                .upsert(leadsToInsert, {
+                    onConflict: 'store_url,category',
+                    ignoreDuplicates: true
+                });
+
+            if (upsertError) {
+                console.error('❌ Supabase Leads Upsert Error:', upsertError);
+            } else {
+                console.log(`✅ Supabase Google Scrape: Upserted ${results.length} stores to Supabase.`);
+            }
+
+            // حفظ احتياطي في Google Sheets إذا كان مفعلاً
+            try {
+                await appendToGoogleSheets(results);
+            } catch (err: any) {
+                console.warn('⚠️ Google Sheets Append Failed (Optional): ', err.message);
+            }
+        }
+
+        // 4. تحديث سجل العمليات كمكتمل
+        if (historyId) {
+            await supabase
+                .from('scraping_history')
+                .update({
+                    results_count: results.length,
+                    status: 'completed'
+                })
+                .eq('id', historyId);
+        }
 
         return NextResponse.json({ success: true, results, failedUrls: [] });
     } catch (error: any) {
         if (error.name === 'AbortError') {
+            if (historyId) {
+                await supabase
+                    .from('scraping_history')
+                    .update({ status: 'failed', error_message: 'Cancelled by user' })
+                    .eq('id', historyId);
+            }
             return NextResponse.json({ success: false, message: 'Cancelled' });
         }
         console.error('Scrape Error:', error);
+
+        if (historyId) {
+            await supabase
+                .from('scraping_history')
+                .update({
+                    status: 'failed',
+                    error_message: error.message
+                })
+                .eq('id', historyId);
+        }
+
         return NextResponse.json({ success: false, error: error.message });
     }
 }

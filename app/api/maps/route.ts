@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { scrapeMapsLeads } from '@/lib/scraper/mapsScraper';
 import { saveToMapsExcel } from '@/lib/excel/mapsExcel';
 import { clearCancel } from '@/lib/scraper/cancelSignal';
+import { supabase } from '@/lib/supabase';
 
 export async function POST(req: NextRequest) {
     const { searchQuery, limit } = await req.json();
@@ -19,19 +20,92 @@ export async function POST(req: NextRequest) {
                 controller.enqueue(encoder.encode(JSON.stringify(data) + '\n'));
             };
 
+            // 1. تسجيل العملية في سجل العمليات بـ Supabase
+            let historyId: string | null = null;
+            try {
+                const { data: historyData, error: historyError } = await supabase
+                    .from('scraping_history')
+                    .insert({
+                        type: 'Google Maps',
+                        query: searchQuery,
+                        results_count: 0,
+                        status: 'processing'
+                    })
+                    .select()
+                    .single();
+                
+                if (historyError) console.error('Supabase history error:', historyError);
+                if (historyData) historyId = historyData.id;
+            } catch (err) {
+                console.error('Failed to create history record:', err);
+            }
+
             try {
                 const results = await scrapeMapsLeads(searchQuery, (event) => {
                     send(event);
                 }, maxResults);
 
-                // حفظ النتائج في الإكسل الخاص بخرائط قوقل في النهاية
+                // 2. حفظ في Supabase
                 if (results.length > 0) {
-                    await saveToMapsExcel(searchQuery, results);
+                    const leadsToInsert = results.map(item => ({
+                        store_name: item.title,
+                        store_url: item.website || item.mapsUrl || '',
+                        sub_text: `العنوان: ${item.address || ''} | التقييم: ${item.rating || 0} (${item.reviewsCount || 0} مراجعة)`,
+                        source: 'maps',
+                        category: searchQuery,
+                        rating: '🟡 متوسط',
+                        is_enriched: false,
+                        phone: item.phone || '',
+                        website: item.website || '',
+                        mahally_url: item.mapsUrl || ''
+                    }));
+
+                    const { error: upsertError } = await supabase
+                        .from('leads')
+                        .upsert(leadsToInsert, {
+                            onConflict: 'store_url,category',
+                            ignoreDuplicates: true
+                        });
+
+                    if (upsertError) {
+                        console.error('❌ Supabase Leads Upsert Error:', upsertError);
+                    } else {
+                        console.log(`✅ Supabase Leads Updated: Upserted ${results.length} stores to [${searchQuery}]`);
+                    }
+
+                    // حفظ احتياطي محلي في الإكسل الخاص بخرائط قوقل في النهاية
+                    try {
+                        await saveToMapsExcel(searchQuery, results);
+                    } catch (excelErr: any) {
+                        console.warn('⚠️ Local Excel EBUSY Lock: ', excelErr.message);
+                    }
+                }
+
+                // 3. تحديث سجل العمليات كمكتمل
+                if (historyId) {
+                    await supabase
+                        .from('scraping_history')
+                        .update({
+                            results_count: results.length,
+                            status: 'completed'
+                        })
+                        .eq('id', historyId);
                 }
 
                 send({ type: 'done', count: results.length });
                 controller.close();
             } catch (error: any) {
+                // 4. تحديث سجل العمليات كفاشل
+                if (historyId) {
+                    await supabase
+                        .from('scraping_history')
+                        .update({
+                            status: 'failed',
+                            error_message: error.message
+                        })
+                        .eq('id', historyId);
+                }
+
                 send({ type: 'error', message: error.message });
                 controller.close();
             }

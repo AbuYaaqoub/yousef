@@ -1,22 +1,18 @@
 import { NextResponse } from 'next/server';
-import * as ExcelJS from 'exceljs';
-import path from 'path';
-import fs from 'fs';
+import { supabase } from '@/lib/supabase';
 
 export async function GET() {
     try {
-        const filePath = path.join(process.cwd(), 'Mazeed_Leads.xlsx');
+        const { data, error } = await supabase
+            .from('leads')
+            .select('category')
+            .eq('source', 'mazeed');
+            
+        if (error) throw error;
         
-        if (!fs.existsSync(filePath)) {
-            return NextResponse.json({ success: true, sheets: [] });
-        }
-
-        const workbook = new ExcelJS.Workbook();
-        await workbook.xlsx.readFile(filePath);
+        const categories = Array.from(new Set((data || []).map(item => item.category).filter(Boolean)));
         
-        const sheetNames = workbook.worksheets.map(s => s.name);
-        
-        return NextResponse.json({ success: true, sheets: sheetNames });
+        return NextResponse.json({ success: true, sheets: categories });
     } catch (error: any) {
         return NextResponse.json({ success: false, error: error.message });
     }

@@ -1,0 +1,268 @@
+/* content/styles.css - SEMrush Smart Copier UI Styles */
+
+:root {
+  --sc-bg: #0f1117;
+  --sc-surface: #1a1d27;
+  --sc-surface2: #22263a;
+  --sc-border: #2e3452;
+  --sc-accent: #ff642e;
+  --sc-accent-hover: #ff7a47;
+  --sc-accent-dim: rgba(255, 100, 46, 0.15);
+  --sc-text: #e8eaf0;
+  --sc-text-dim: #8891b4;
+  --sc-success: #2dd4a0;
+  --sc-error: #ff4f6a;
+  --sc-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  --sc-radius: 10px;
+  --sc-font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+/* ── Floating Button ── */
+#semrush-smart-copier-root {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  z-index: 2147483647;
+  font-family: var(--sc-font);
+  font-size: 13px;
+}
+
+.sc-fab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--sc-bg);
+  border: 1px solid var(--sc-border);
+  border-radius: var(--sc-radius);
+  color: var(--sc-text);
+  cursor: pointer;
+  box-shadow: var(--sc-shadow);
+  transition: all 0.2s ease;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.sc-fab:hover {
+  background: var(--sc-surface);
+  border-color: var(--sc-accent);
+  box-shadow: 0 8px 32px rgba(255,100,46,0.2);
+  transform: translateY(-1px);
+}
+
+.sc-fab:active {
+  transform: translateY(0);
+}
+
+.sc-fab-icon {
+  width: 16px;
+  height: 16px;
+  fill: var(--sc-accent);
+  flex-shrink: 0;
+}
+
+.sc-fab-text {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.sc-fab-kbd {
+  font-size: 10px;
+  color: var(--sc-text-dim);
+  background: var(--sc-surface2);
+  border: 1px solid var(--sc-border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-family: monospace;
+}
+
+/* ── Settings Toggle ── */
+.sc-settings-btn {
+  width: 32px;
+  height: 32px;
+  background: var(--sc-surface);
+  border: 1px solid var(--sc-border);
+  border-radius: 8px;
+  color: var(--sc-text-dim);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 6px;
+  transition: all 0.2s;
+  margin-left: auto;
+}
+
+.sc-settings-btn:hover {
+  border-color: var(--sc-accent);
+  color: var(--sc-accent);
+}
+
+.sc-settings-btn svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+}
+
+/* ── Column Selector Panel ── */
+.sc-panel {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  right: 0;
+  width: 240px;
+  background: var(--sc-bg);
+  border: 1px solid var(--sc-border);
+  border-radius: var(--sc-radius);
+  box-shadow: var(--sc-shadow);
+  overflow: hidden;
+  animation: sc-slide-up 0.15s ease;
+}
+
+@keyframes sc-slide-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.sc-panel-header {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--sc-border);
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--sc-text-dim);
+}
+
+.sc-column-list {
+  padding: 8px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.sc-column-list::-webkit-scrollbar {
+  width: 4px;
+}
+.sc-column-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sc-column-list::-webkit-scrollbar-thumb {
+  background: var(--sc-border);
+  border-radius: 2px;
+}
+
+.sc-col-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.sc-col-item:hover {
+  background: var(--sc-surface);
+}
+
+.sc-col-item input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid var(--sc-border);
+  border-radius: 3px;
+  background: var(--sc-surface2);
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+
+.sc-col-item input[type="checkbox"]:checked {
+  background: var(--sc-accent);
+  border-color: var(--sc-accent);
+}
+
+.sc-col-item input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 1px;
+  width: 5px;
+  height: 8px;
+  border: 1.5px solid #fff;
+  border-top: none;
+  border-left: none;
+  transform: rotate(40deg);
+}
+
+.sc-col-label {
+  font-size: 12px;
+  color: var(--sc-text);
+}
+
+/* ── Toast Notification ── */
+.sc-toast {
+  position: fixed;
+  bottom: 90px;
+  right: 28px;
+  z-index: 2147483647;
+  padding: 10px 16px;
+  border-radius: var(--sc-radius);
+  font-family: var(--sc-font);
+  font-size: 12px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: var(--sc-shadow);
+  animation: sc-toast-in 0.2s ease;
+  pointer-events: none;
+}
+
+.sc-toast.success {
+  background: var(--sc-bg);
+  border: 1px solid var(--sc-success);
+  color: var(--sc-success);
+}
+
+.sc-toast.error {
+  background: var(--sc-bg);
+  border: 1px solid var(--sc-error);
+  color: var(--sc-error);
+}
+
+.sc-toast.loading {
+  background: var(--sc-bg);
+  border: 1px solid var(--sc-border);
+  color: var(--sc-text);
+}
+
+@keyframes sc-toast-in {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes sc-toast-out {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(20px); }
+}
+
+.sc-toast.fade-out {
+  animation: sc-toast-out 0.2s ease forwards;
+}
+
+/* ── Spinner ── */
+.sc-spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--sc-border);
+  border-top-color: var(--sc-accent);
+  border-radius: 50%;
+  animation: sc-spin 0.6s linear infinite;
+}
+
+@keyframes sc-spin {
+  to { transform: rotate(360deg); }
+}

@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ahrefs Smart Extractor</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: linear-gradient(135deg, #1a1a2e 0%, #0f1419 100%);
+      color: #e0e0e0;
+      font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+      min-width: 400px;
+      direction: rtl;
+    }
+
+    .container {
+      padding: 20px;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 20px;
+      border-bottom: 2px solid #0ea5e9;
+      padding-bottom: 12px;
+    }
+
+    .header h1 {
+      font-size: 20px;
+      margin-bottom: 4px;
+    }
+
+    .header p {
+      font-size: 12px;
+      color: #94a3b8;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      flex-direction: column;
+    }
+
+    .btn {
+      padding: 12px 16px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 500;
+      font-size: 14px;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #0284c7 0%, #0170ad 100%);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
+    }
+
+    .btn-success {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: white;
+    }
+
+    .btn-success:hover {
+      background: linear-gradient(135deg, #059669 0%, #047857 100%);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    }
+
+    .settings {
+      background: #0f172a;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 16px;
+    }
+
+    .setting-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid #1e293b;
+      font-size: 13px;
+    }
+
+    .setting-item:last-child {
+      border-bottom: none;
+    }
+
+    .toggle {
+      width: 40px;
+      height: 24px;
+      background: #333;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      position: relative;
+      transition: background 0.3s;
+    }
+
+    .toggle.active {
+      background: #10b981;
+    }
+
+    .toggle::after {
+      content: '';
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      background: white;
+      border-radius: 50%;
+      top: 2px;
+      left: 2px;
+      transition: left 0.3s;
+    }
+
+    .toggle.active::after {
+      left: 18px;
+    }
+
+    .hotkeys {
+      background: #1e293b;
+      border-left: 3px solid #0ea5e9;
+      padding: 12px;
+      margin-bottom: 16px;
+      border-radius: 4px;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .hotkeys p {
+      margin: 4px 0;
+      color: #94a3b8;
+    }
+
+    .hotkeys kbd {
+      background: #0f172a;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: monospace;
+      color: #0ea5e9;
+    }
+
+    .status {
+      background: #0f172a;
+      border-radius: 6px;
+      padding: 12px;
+      text-align: center;
+      font-size: 13px;
+      color: #94a3b8;
+      margin-bottom: 12px;
+    }
+
+    .status.success {
+      background: #064e3b;
+      color: #10b981;
+      border-left: 3px solid #10b981;
+    }
+
+    .status.error {
+      background: #7f1d1d;
+      color: #ef4444;
+      border-left: 3px solid #ef4444;
+    }
+
+    .language-selector {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid #333;
+    }
+
+    .lang-btn {
+      padding: 6px 12px;
+      border: 1px solid #333;
+      background: transparent;
+      color: #e0e0e0;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.2s;
+    }
+
+    .lang-btn.active {
+      background: #0ea5e9;
+      border-color: #0ea5e9;
+      color: white;
+    }
+
+    .lang-btn:hover {
+      border-color: #0ea5e9;
+    }
+
+    .divider {
+      height: 1px;
+      background: #1e293b;
+      margin: 12px 0;
+    }
+
+    .info-text {
+      font-size: 11px;
+      color: #64748b;
+      text-align: center;
+      padding: 8px;
+      background: #0f172a;
+      border-radius: 4px;
+      margin-top: 12px;
+    }
+  </style>
+</head>
+<body>
+<div id="__plasmo"></div><script src="./static/popup.tsx" type="module"></script></body>
+</html>

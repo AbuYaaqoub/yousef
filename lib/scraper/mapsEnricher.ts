@@ -2,27 +2,73 @@ import * as ExcelJS from 'exceljs';
 import path from 'path';
 import fs from 'fs';
 import { extractFromHomepage } from './extractStoreInfo';
+import { supabase } from '../supabase';
+import { calculateRating } from '../leadScoring';
 
-const INPUT_FILE = path.join(process.cwd(), 'Google_Maps_Leads.xlsx');
 const OUTPUT_FILE = path.join(process.cwd(), 'Final_Maps_Data.xlsx');
 
-export async function enrichMapsData(targetSheetName?: string) {
-    console.log(`📂 Checking for Google Maps input file at: ${INPUT_FILE}`);
-    
-    if (!fs.existsSync(INPUT_FILE)) {
-        console.error('❌ Google Maps Input file not found!');
-        throw new Error(`لم يتم العثور على ملف Google_Maps_Leads.xlsx في ${INPUT_FILE}`);
+function parseSubText(subText: string = '') {
+    // subText format: "العنوان: {address} | التقييم: {rating} ({reviewsCount} مراجعة)"
+    let address = '';
+    let rating = 0;
+    let reviewsCount = 0;
+
+    const addressMatch = subText.match(/العنوان:\s*(.*?)(?:\s*\|\s*التقييم:|$)/);
+    if (addressMatch) {
+        address = addressMatch[1].trim();
     }
 
-    const inputWorkbook = new ExcelJS.Workbook();
-    await inputWorkbook.xlsx.readFile(INPUT_FILE);
-    
+    const ratingMatch = subText.match(/التقييم:\s*([\d.]+)/);
+    if (ratingMatch) {
+        rating = parseFloat(ratingMatch[1]);
+    }
+
+    const reviewsMatch = subText.match(/\((.*?)\s*مراجعة\)/);
+    if (reviewsMatch) {
+        reviewsCount = parseInt(reviewsMatch[1].replace(/[^\d]/g, ''), 10) || 0;
+    }
+
+    return { address, rating, reviewsCount };
+}
+
+export async function enrichMapsData(targetSheetName?: string) {
+    console.log(`📂 Starting Google Maps enrichment process via Supabase...`);
+
+    // 1. جلب البيانات غير المثرية من Supabase
+    let dbQuery = supabase
+        .from('leads')
+        .select('*')
+        .eq('source', 'maps')
+        .eq('is_enriched', false);
+
+    if (targetSheetName) {
+        dbQuery = dbQuery.eq('category', targetSheetName);
+    }
+
+    const { data: storesToProcess, error: dbError } = await dbQuery;
+
+    if (dbError) {
+        console.error('❌ Supabase Query Error:', dbError);
+        throw new Error(`تعذر جلب البيانات من Supabase: ${dbError.message}`);
+    }
+
+    if (!storesToProcess || storesToProcess.length === 0) {
+        console.log('📝 No unenriched Google Maps leads found in Supabase.');
+        return [];
+    }
+
+    console.log(`📝 Found ${storesToProcess.length} Google Maps leads to process for category [${targetSheetName || 'All'}].`);
+
+    // إعداد ملف إكسل كنسخة احتياطية
     const outputWorkbook = new ExcelJS.Workbook();
     if (fs.existsSync(OUTPUT_FILE)) {
-        await outputWorkbook.xlsx.readFile(OUTPUT_FILE);
+        try {
+            await outputWorkbook.xlsx.readFile(OUTPUT_FILE);
+        } catch (e) {
+            console.warn('Could not read local final maps excel backup, starting fresh.');
+        }
     }
 
-    // اسم ورقة العمل النهائية
     const finalSheetName = targetSheetName ? `خرائط - ${targetSheetName}`.substring(0, 30) : 'خرائط - نتائج عامة';
     let worksheet = outputWorkbook.getWorksheet(finalSheetName);
 
@@ -50,40 +96,7 @@ export async function enrichMapsData(targetSheetName?: string) {
         };
     }
 
-    const leadsToProcess: any[] = [];
-    inputWorkbook.eachSheet(sheet => {
-        if (!targetSheetName || sheet.name === targetSheetName) {
-            sheet.eachRow((row, rowNumber) => {
-                if (rowNumber > 1) {
-                    const title = row.getCell(1).value?.toString();
-                    const mapsUrl = row.getCell(2).value?.toString();
-                    const rating = row.getCell(3).value || 0;
-                    const reviewsCount = row.getCell(4).value || 0;
-                    const category = row.getCell(5).value?.toString();
-                    const address = row.getCell(6).value?.toString();
-                    const phone = row.getCell(7).value?.toString();
-                    const website = row.getCell(8).value?.toString();
-
-                    if (title) {
-                        leadsToProcess.push({
-                            title,
-                            mapsUrl,
-                            rating,
-                            reviewsCount,
-                            category: category || '',
-                            address: address || '',
-                            phone: phone || '',
-                            website: website || ''
-                        });
-                    }
-                }
-            });
-        }
-    });
-
-    console.log(`📝 Found ${leadsToProcess.length} Google Maps leads to process for sheet [${finalSheetName}].`);
-
-    // قراءة الروابط أو الخرائط الموجودة حالياً لتجنب التكرار في ملف النتائج النهائية
+    // قراءة الخرائط الموجودة حالياً لتجنب التكرار في ملف النتائج النهائية
     const existingMapsUrls = new Set<string>();
     worksheet.eachRow((row, rowNumber) => {
         if (rowNumber > 1) {
@@ -94,72 +107,127 @@ export async function enrichMapsData(targetSheetName?: string) {
 
     const results = [];
 
-    for (const lead of leadsToProcess) {
-        if (existingMapsUrls.has(lead.mapsUrl)) {
-            console.log(`⏩ Lead already enriched: ${lead.title}`);
+    for (const store of storesToProcess) {
+        if (store.store_url && existingMapsUrls.has(store.store_url)) {
+            console.log(`⏩ Lead already enriched in Excel: ${store.store_name}`);
+            // تحديث حالة الحفظ في Supabase كـ enriched فقط
+            await supabase
+                .from('leads')
+                .update({ is_enriched: true })
+                .eq('id', store.id);
             continue;
         }
 
-        console.log(`\n🔎 Enriching: ${lead.title}...`);
+        console.log(`\n🔎 Enriching: ${store.store_name}...`);
         
         let enrichedInfo: any = {};
+        const websiteUrl = store.website || '';
         
-        if (lead.website) {
-            console.log(`✅ Crawling website: ${lead.website}`);
+        if (websiteUrl && websiteUrl !== 'غير متوفر') {
+            console.log(`✅ Crawling website: ${websiteUrl}`);
             try {
-                const info = await extractFromHomepage(lead.website);
+                const info = await extractFromHomepage(websiteUrl);
                 enrichedInfo = {
                     email: info.email || '',
-                    phone: info.phone || info.whatsapp || lead.phone || '', // fallback to original phone
+                    phone: info.phone || info.whatsapp || store.phone || '', // fallback to original phone
+                    whatsapp: info.whatsapp || '',
                     instagram: info.instagram || '',
                     tiktok: info.tiktok || '',
-                    snapchat: info.snapchat || ''
+                    snapchat: info.snapchat || '',
+                    twitter: info.twitter || '',
+                    facebook: info.facebook || '',
+                    youtube: info.youtube || ''
                 };
             } catch (e: any) {
-                console.error(`❌ Extraction error for ${lead.title}:`, e.message);
-                // Fallback to original phone if extraction fails
+                console.error(`❌ Extraction error for ${store.store_name}:`, e.message);
                 enrichedInfo = {
                     email: '',
-                    phone: lead.phone || '',
+                    phone: store.phone || '',
+                    whatsapp: '',
                     instagram: '',
                     tiktok: '',
-                    snapchat: ''
+                    snapchat: '',
+                    twitter: '',
+                    facebook: '',
+                    youtube: ''
                 };
             }
         } else {
-            console.log(`⚠️ No website URL available to crawl for ${lead.title}. Using GMap phone: ${lead.phone}`);
+            console.log(`⚠️ No website URL available to crawl for ${store.store_name}. Using original phone: ${store.phone}`);
             enrichedInfo = {
                 email: '',
-                phone: lead.phone || '',
+                phone: store.phone || '',
+                whatsapp: '',
                 instagram: '',
                 tiktok: '',
-                snapchat: ''
+                snapchat: '',
+                twitter: '',
+                facebook: '',
+                youtube: ''
             };
         }
 
-        const finalData = {
-            title: lead.title,
-            category: lead.category,
-            rating: lead.rating,
-            reviewsCount: lead.reviewsCount,
-            address: lead.address,
-            website: lead.website || 'غير متوفر',
+        const calculatedRating = calculateRating({
+            email: enrichedInfo.email,
+            phone: enrichedInfo.phone,
+            whatsapp: enrichedInfo.whatsapp,
+            instagram: enrichedInfo.instagram,
+            tiktok: enrichedInfo.tiktok,
+            snapchat: enrichedInfo.snapchat,
+            twitter: enrichedInfo.twitter
+        });
+
+        const finalDbData = {
+            email: enrichedInfo.email || '',
+            phone: enrichedInfo.phone || '',
+            whatsapp: enrichedInfo.whatsapp || '',
+            instagram: enrichedInfo.instagram || '',
+            tiktok: enrichedInfo.tiktok || '',
+            snapchat: enrichedInfo.snapchat || '',
+            twitter: enrichedInfo.twitter || '',
+            facebook: enrichedInfo.facebook || '',
+            youtube: enrichedInfo.youtube || '',
+            rating: calculatedRating,
+            is_enriched: true
+        };
+
+        // تحديث السجل في Supabase
+        const { error: updateError } = await supabase
+            .from('leads')
+            .update(finalDbData)
+            .eq('id', store.id);
+
+        if (updateError) {
+            console.error(`❌ Supabase update error for ${store.store_name}:`, updateError);
+        } else {
+            console.log(`💾 Saved ${store.store_name} to Supabase`);
+        }
+
+        const { address, rating, reviewsCount } = parseSubText(store.sub_text || '');
+
+        const excelRow = {
+            title: store.store_name,
+            category: store.category,
+            rating: rating || 0,
+            reviewsCount: reviewsCount || 0,
+            address: address || '',
+            website: websiteUrl || 'غير متوفر',
             email: enrichedInfo.email || '',
             phone: enrichedInfo.phone || '',
             instagram: enrichedInfo.instagram || '',
             tiktok: enrichedInfo.tiktok || '',
             snapchat: enrichedInfo.snapchat || '',
-            mapsUrl: lead.mapsUrl
+            mapsUrl: store.mahally_url || store.store_url || ''
         };
 
-        worksheet.addRow(finalData);
-        results.push(finalData);
-        existingMapsUrls.add(lead.mapsUrl);
+        worksheet.addRow(excelRow);
+        results.push(excelRow);
+        if (store.store_url) existingMapsUrls.add(store.store_url);
         
         // حفظ ملف الإكسل التراكمي
         try {
             await outputWorkbook.xlsx.writeFile(OUTPUT_FILE);
-            console.log(`💾 Saved ${lead.title} to Final Excel [${finalSheetName}]`);
+            console.log(`💾 Saved ${store.store_name} to Final Excel [${finalSheetName}]`);
         } catch (excelError: any) {
             console.error('⚠️ Failed to write excel file, possibly locked:', excelError.message);
         }

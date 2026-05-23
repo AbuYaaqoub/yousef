@@ -1,0 +1,26 @@
+{
+  "name": "ahrefs-smart-extractor",
+  "displayName": "Ahrefs Smart Extractor",
+  "version": "1.0.0",
+  "description": "Chrome Extension ذكية لاستخراج البيانات من Ahrefs",
+  "scripts": {
+    "dev": "plasmo dev",
+    "build": "plasmo build",
+    "package": "plasmo package"
+  },
+  "dependencies": {
+    "plasmo": "^0.90.5",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.240",
+    "@types/react": "^18.2.24",
+    "@types/react-dom": "^18.2.8",
+    "autoprefixer": "^10.5.0",
+    "postcss": "^8.5.15",
+    "tailwindcss": "^3.3.3",
+    "typescript": "^5.2.2"
+  }
+}
