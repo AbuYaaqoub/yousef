@@ -110,11 +110,132 @@ import { ColumnConfig } from '../types/index';
   }
 
   // ══════════════════════════════════════
+  //  DATABASE SYNC FUNCTION
+  // ══════════════════════════════════════
+  async function performSync() {
+    const loadingToast = showToast('جاري استخلاص وتصفية المتاجر... ⏳', 'loading', 0);
+
+    try {
+      const table = detectTable();
+      if (!table) {
+        loadingToast.remove();
+        showToast('لم يتم العثور على جدول في الصفحة', 'error');
+        return;
+      }
+
+      const headers = getTableHeaders(table);
+      if (!headers.length) {
+        loadingToast.remove();
+        showToast('لم يتم العثور على أعمدة', 'error');
+        return;
+      }
+
+      let rows = extractRows(table, headers);
+      rows = cleanData(rows);
+
+      if (!rows.length) {
+        loadingToast.remove();
+        showToast('لم يتم العثور على بيانات', 'error');
+        return;
+      }
+
+      // Find all URL fields across columns
+      const urlKeys = headers.filter(h => {
+        const hLower = h.toLowerCase();
+        return hLower.includes('url') || hLower.includes('link') || hLower.includes('page') || hLower.includes('website');
+      });
+
+      // Extract unique clean URLs
+      const extractedUrls = new Set<string>();
+      rows.forEach(row => {
+        urlKeys.forEach(key => {
+          const val = (row[key] || '').trim();
+          if (val && val.startsWith('http')) {
+            extractedUrls.add(val);
+          }
+        });
+      });
+
+      const urlList = Array.from(extractedUrls);
+
+      if (urlList.length === 0) {
+        loadingToast.remove();
+        showToast('لم يتم العثور على روابط مواقع في الجدول', 'error');
+        return;
+      }
+
+      // Smart filter: prioritize Salla/Zed or clean independent stores
+      const sallaOrZedRegex = /(salla\.sa|salla\.co|zid\.store|zid\.sa|mahally\.com)/i;
+      const socialOrSearchRegex = /(google\.com|semrush\.com|youtube\.com|facebook\.com|instagram\.com|tiktok\.com|twitter\.com|x\.com|snapchat\.com|pinterest\.com|linkedin\.com|wikipedia\.org)/i;
+
+      // First find Salla/Zed stores
+      let filteredUrls = urlList.filter(url => sallaOrZedRegex.test(url));
+
+      // If none found, fallback to any independent URLs (excluding social media & major search engines)
+      if (filteredUrls.length === 0) {
+        filteredUrls = urlList.filter(url => !socialOrSearchRegex.test(url));
+      }
+
+      if (filteredUrls.length === 0) {
+        loadingToast.remove();
+        showToast('لم يتم العثور على روابط متاجر صالحة للتنصيب في نقيب', 'error');
+        return;
+      }
+
+      // Update toast to show syncing state
+      loadingToast.remove();
+      const syncToast = showToast(`جاري مزامنة وإثراء ${filteredUrls.length} متجراً في نقيب... ◆`, 'loading', 0);
+
+      // Resolve manual inputs with defaults
+      const finalSource = manualSource || (window.location.hostname.includes('ahrefs') ? 'ahrefs' : 'semrush');
+      
+      let finalCategory = manualCategory;
+      if (!finalCategory) {
+        let defaultCategory = 'عام';
+        const titleEl = document.querySelector('h1, title');
+        if (titleEl && titleEl.textContent) {
+          defaultCategory = titleEl.textContent.trim().split('|')[0].split('-')[0].trim();
+        }
+        finalCategory = defaultCategory;
+      }
+
+      // Fetch POST to Next.js Local Server
+      const res = await fetch('http://localhost:3000/api/leads/sync-plugin', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          urls: filteredUrls,
+          source: finalSource,
+          category: finalCategory
+        })
+      });
+
+      const data = await res.json();
+      syncToast.remove();
+
+      if (res.ok && data.success) {
+        showToast(`مزامنة حية! تم مزامنة وإثراء ${data.count} متجراً بنجاح في نقيب ◆`, 'success', 3500);
+      } else {
+        showToast(`فشلت المزامنة: ${data.error || 'خطأ غير معروف'}`, 'error');
+      }
+
+    } catch (err: any) {
+      loadingToast.remove();
+      showToast('تعذر الاتصال بنقيب. تأكد من تشغيل تطبيق نقيب المحلي.', 'error', 3500);
+      console.error('[Naqeeb Smart Copier Sync Error]', err);
+    }
+  }
+
+  // ══════════════════════════════════════
   //  COLUMN SELECTOR PANEL
   // ══════════════════════════════════════
   let panelOpen = false;
   let columnConfig: ColumnConfig[] = [];
   let currentHeaders: string[] = [];
+  let manualSource = '';
+  let manualCategory = '';
 
   function buildColumnPanel(container: HTMLElement) {
     const table = detectTable();
@@ -134,18 +255,66 @@ import { ColumnConfig } from '../types/index';
       }
     }
 
+    // Set initial values if not already set by user manually
+    if (!manualSource) {
+      manualSource = window.location.hostname.includes('ahrefs') ? 'ahrefs' : 'semrush';
+    }
+    if (!manualCategory) {
+      let defaultCategory = 'عام';
+      const titleEl = document.querySelector('h1, title');
+      if (titleEl && titleEl.textContent) {
+        defaultCategory = titleEl.textContent.trim().split('|')[0].split('-')[0].trim();
+      }
+      manualCategory = defaultCategory;
+    }
+
     const panel = document.createElement('div');
     panel.className = 'sc-panel';
 
     panel.innerHTML = `
-      <div class="sc-panel-header">الأعمدة</div>
+      <div class="sc-panel-header">إعدادات المزامنة سحابياً ◆</div>
+      <div class="sc-sync-settings" style="padding:12px;display:flex;flex-direction:column;gap:10px;">
+        <div class="sc-setting-field" style="display:flex;flex-direction:column;gap:4px;">
+          <label style="font-size:11px;font-weight:700;color:var(--sc-text-dim);">منصة المصدر يدوياً:</label>
+          <select id="sc-sync-source" class="sc-select" style="padding:6px;font-size:12px;border:1px solid var(--sc-border);border-radius:6px;background:#fff;font-family:var(--sc-font);outline:none;cursor:pointer;">
+            <option value="semrush" ${manualSource === 'semrush' ? 'selected' : ''}>ملحق SEMrush</option>
+            <option value="ahrefs" ${manualSource === 'ahrefs' ? 'selected' : ''}>ملحق Ahrefs</option>
+            <option value="maps" ${manualSource === 'maps' ? 'selected' : ''}>خرائط جوجل</option>
+            <option value="mahally" ${manualSource === 'mahally' ? 'selected' : ''}>سلة (محلي)</option>
+            <option value="mazeed" ${manualSource === 'mazeed' ? 'selected' : ''}>زد (مزيد)</option>
+            <option value="google_scrape" ${manualSource === 'google_scrape' ? 'selected' : ''}>بحث جوجل والويب</option>
+          </select>
+        </div>
+        <div class="sc-setting-field" style="display:flex;flex-direction:column;gap:4px;">
+          <label style="font-size:11px;font-weight:700;color:var(--sc-text-dim);">اسم التصنيف / المشروع:</label>
+          <input type="text" id="sc-sync-category" class="sc-input" placeholder="مثال: متاجر عطور الرياض" value="${manualCategory}" style="padding:6px;font-size:12px;border:1px solid var(--sc-border);border-radius:6px;font-family:var(--sc-font);outline:none;" />
+        </div>
+      </div>
+      
+      <div class="sc-panel-header" style="border-top: 1px solid var(--sc-border)">الأعمدة المستخرجة</div>
       <div class="sc-column-list" id="sc-col-list"></div>
     `;
+
+    // Hook up manual settings listeners
+    const sourceSelect = panel.querySelector('#sc-sync-source') as HTMLSelectElement;
+    if (sourceSelect) {
+      sourceSelect.addEventListener('change', () => {
+        manualSource = sourceSelect.value;
+      });
+    }
+
+    const categoryInput = panel.querySelector('#sc-sync-category') as HTMLInputElement;
+    if (categoryInput) {
+      categoryInput.addEventListener('input', () => {
+        manualCategory = categoryInput.value;
+      });
+    }
 
     const list = panel.querySelector('#sc-col-list') as HTMLElement;
 
     if (!columnConfig.length) {
-      list.innerHTML = `<div style="padding:12px;color:var(--sc-text-dim);font-size:12px;text-align:center">افتح صفحة جدول في SEMrush أولاً</div>`;
+      const serviceName = window.location.hostname.includes('ahrefs') ? 'Ahrefs' : 'SEMrush';
+      list.innerHTML = `<div style="padding:12px;color:var(--sc-text-dim);font-size:12px;text-align:center">افتح صفحة جدول في ${serviceName} أولاً</div>`;
     } else {
       columnConfig.forEach((col, idx) => {
         const item = document.createElement('label');
@@ -188,6 +357,15 @@ import { ColumnConfig } from '../types/index';
       </svg>
     `;
 
+    // Sync button
+    const syncBtn = document.createElement('button');
+    syncBtn.className = 'sc-sync-btn';
+    syncBtn.title = 'مزامنة وإثراء في نقيب ◆';
+    syncBtn.innerHTML = `
+      <span class="sc-sync-icon">◆</span>
+      <span class="sc-sync-text">مزامنة وإثراء</span>
+    `;
+
     // Copy button
     const copyBtn = document.createElement('button');
     copyBtn.className = 'sc-fab';
@@ -200,6 +378,7 @@ import { ColumnConfig } from '../types/index';
     `;
 
     copyBtn.addEventListener('click', performCopy);
+    syncBtn.addEventListener('click', performSync);
 
     settingsBtn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -223,6 +402,7 @@ import { ColumnConfig } from '../types/index';
     });
 
     row.appendChild(settingsBtn);
+    row.appendChild(syncBtn);
     row.appendChild(copyBtn);
     root.appendChild(row);
     document.body.appendChild(root);

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "SEMrush Smart Copier",
+  "name": "Naqeeb Smart Copier ◆",
   "version": "1.0.0",
-  "description": "نسخ جداول SEMrush بشكل مرتب مباشرة إلى Excel",
+  "description": "نسخ ومزامنة جداول SEMrush و Ahrefs مباشرة إلى قاعدة بيانات نقيب أو Excel بنقرة واحدة",
   "permissions": [
     "clipboardWrite",
     "activeTab",
@@ -10,13 +10,16 @@
   ],
   "host_permissions": [
     "https://*.semrush.com/*",
-    "https://*.proseotools.us/*"
+    "https://*.proseotools.us/*",
+    "https://*.ahrefs.com/*",
+    "http://localhost:3000/*"
   ],
   "content_scripts": [
     {
       "matches": [
         "https://*.semrush.com/*",
-        "https://*.proseotools.us/*"
+        "https://*.proseotools.us/*",
+        "https://*.ahrefs.com/*"
       ],
       "js": ["content/index.js"],
       "css": ["content/styles.css"],
@@ -34,6 +37,6 @@
       "48": "icons/icon48.png",
       "128": "icons/icon128.png"
     },
-    "default_title": "SEMrush Smart Copier"
+    "default_title": "Naqeeb Smart Copier ◆"
   }
 }

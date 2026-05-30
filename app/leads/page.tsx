@@ -165,6 +165,8 @@ export default function LeadsPage() {
                             <option value="mazeed">زد (مزيد)</option>
                             <option value="maps">خرائط جوجل</option>
                             <option value="google_scrape">بحث جوجل والويب</option>
+                            <option value="semrush_plugin">ملحق SEMrush</option>
+                            <option value="ahrefs_plugin">ملحق Ahrefs</option>
                         </select>
 
                         <ActionButton
@@ -357,11 +359,15 @@ export default function LeadsPage() {
                                                 lead.source === 'mahally' ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' :
                                                 lead.source === 'mazeed' ? 'bg-purple-50 text-purple-700 border border-purple-100' :
                                                 lead.source === 'maps' ? 'bg-cyan-50 text-cyan-700 border border-cyan-100' :
+                                                lead.source === 'semrush_plugin' ? 'bg-orange-50 text-orange-700 border border-orange-100' :
+                                                lead.source === 'ahrefs_plugin' ? 'bg-blue-50 text-blue-700 border border-blue-100' :
                                                 'bg-zinc-50 text-zinc-700 border border-zinc-200'
                                             }`}>
                                                 {lead.source === 'mahally' ? 'سلة' :
                                                  lead.source === 'mazeed' ? 'زد' :
-                                                 lead.source === 'maps' ? 'خرائط' : 'ويب/جوجل'}
+                                                 lead.source === 'maps' ? 'خرائط' :
+                                                 lead.source === 'semrush_plugin' ? 'SEMrush' :
+                                                 lead.source === 'ahrefs_plugin' ? 'Ahrefs' : 'ويب/جوجل'}
                                             </span>
                                         </td>
                                     </tr>
