@@ -121,8 +121,18 @@ export function Sidebar() {
         e.preventDefault();
         if (!newClientName.trim() || isSubmitting) return;
 
+        const generatedId = usingFallback 
+            ? `client-${Date.now()}` 
+            : (typeof window !== 'undefined' && window.crypto && window.crypto.randomUUID 
+                ? window.crypto.randomUUID() 
+                : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+                    const r = Math.random() * 16 | 0;
+                    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+                })
+            );
+
         const newClient = {
-            id: usingFallback ? `client-${Date.now()}` : undefined,
+            id: generatedId,
             name: newClientName,
             website: newClientWebsite || 'غير محدد'
         };
@@ -156,9 +166,14 @@ export function Sidebar() {
             if (addedId) {
                 router.push(`/improve?client=${addedId}`);
             }
-        } catch (err) {
+        } catch (err: any) {
             console.error('Failed to add client from sidebar:', err);
-            alert('خطأ في إدخال البيانات.');
+            const errMsg = err?.message || '';
+            if (errMsg.includes('relation') && errMsg.includes('does not exist')) {
+                alert('خطأ: الجداول غير موجودة في قاعدة بيانات Supabase.\n\nيرجى تشغيل ملف supabase_schema.sql داخل الـ SQL Editor في Supabase لتهيئة الجداول أولاً.');
+            } else {
+                alert(`خطأ في إدخال البيانات: ${errMsg || 'تعذر الاتصال بقاعدة البيانات'}`);
+            }
         } finally {
             setIsSubmitting(false);
         }
@@ -427,7 +442,7 @@ export function Sidebar() {
 
             {/* مودال إضافة عميل جديد من شريط الجنب */}
             {showAddClientModal && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in duration-250">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/65 p-4 animate-in duration-250">
                     <div className="bg-white border border-slate-100 rounded-[32px] w-full max-w-sm p-7 shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
                         <div className="mb-5">
                             <h3 className="text-lg font-black text-slate-900">إضافة عميل جديد</h3>

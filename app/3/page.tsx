@@ -950,7 +950,7 @@ export default function GoogleMapsDashboard() {
 
             {/* Custom Lead Detail Modal */}
             {selectedLead && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" onClick={() => setSelectedLead(null)}>
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/75" onClick={() => setSelectedLead(null)}>
                     <div
                         className="bg-white rounded-[32px] w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl"
                         onClick={(e) => e.stopPropagation()}

@@ -27,6 +27,7 @@ interface KeywordsDatabaseProps {
     onAddKeyword: (keyword: string, kd: number, volume: number, platform: string, source: string) => Promise<void>;
     onDeleteKeyword: (id: string) => Promise<void>;
     onSwitchTab: () => void;
+    isWideView?: boolean;
 }
 
 export function KeywordsDatabase({
@@ -35,7 +36,8 @@ export function KeywordsDatabase({
     usingFallback,
     onAddKeyword,
     onDeleteKeyword,
-    onSwitchTab
+    onSwitchTab,
+    isWideView = false
 }: KeywordsDatabaseProps) {
     const [searchQuery, setSearchQuery] = useState('');
     const [platformFilter, setPlatformFilter] = useState('all');
@@ -169,15 +171,15 @@ export function KeywordsDatabase({
 
             {/* جدول الكلمات */}
             <div className="overflow-x-auto border border-slate-100 rounded-2xl">
-                <table className="w-full text-right border-collapse">
+                <table className={cn("w-full text-right border-collapse transition-all duration-300", isWideView ? "min-w-[1100px]" : "min-w-full")}>
                     <thead>
                         <tr className="bg-slate-50/80 border-b border-slate-100 text-slate-500 text-[10px] font-black uppercase tracking-wider">
-                            <th className="p-4">الكلمة المفتاحية</th>
-                            <th className="p-4 text-center">الصعوبة KD</th>
-                            <th className="p-4 text-center">حجم البحث الشهري</th>
-                            <th className="p-4 text-center">المنصة المصدر</th>
-                            <th className="p-4">الموقع المصدر</th>
-                            <th className="p-4 text-center">الإجراءات</th>
+                            <th className={cn("p-4 transition-all duration-300", isWideView ? "w-[25%] min-w-[250px] border-l border-slate-100/80" : "")}>الكلمة المفتاحية</th>
+                            <th className={cn("p-4 text-center transition-all duration-300", isWideView ? "w-[12%] min-w-[110px] border-l border-slate-100/80" : "")}>الصعوبة KD</th>
+                            <th className={cn("p-4 text-center transition-all duration-300", isWideView ? "w-[18%] min-w-[150px] border-l border-slate-100/80" : "")}>حجم البحث الشهري</th>
+                            <th className={cn("p-4 text-center transition-all duration-300", isWideView ? "w-[15%] min-w-[120px] border-l border-slate-100/80" : "")}>المنصة المصدر</th>
+                            <th className={cn("p-4 transition-all duration-300", isWideView ? "w-[20%] min-w-[200px] border-l border-slate-100/80" : "")}>الموقع المصدر</th>
+                            <th className={cn("p-4 text-center transition-all duration-300", isWideView ? "w-[10%] min-w-[80px]" : "")}>الإجراءات</th>
                         </tr>
                     </thead>
                     <tbody className="text-xs font-bold text-slate-700 divide-y divide-slate-100">
@@ -191,14 +193,14 @@ export function KeywordsDatabase({
                         ) : (
                             filteredKeywordsDB.map((item) => (
                                 <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
-                                    <td className="p-4 font-black text-slate-900">{item.keyword}</td>
-                                    <td className="p-4 text-center">
+                                    <td className={cn("p-4 font-black text-slate-900 transition-all duration-300", isWideView && "border-l border-slate-100/50")}>{item.keyword}</td>
+                                    <td className={cn("p-4 text-center transition-all duration-300", isWideView && "border-l border-slate-100/50")}>
                                         <span className={cn("px-2.5 py-1 rounded-full border text-[10px] font-black inline-block min-w-[55px]", getKDColorClass(item.kd))}>
                                             {item.kd}% ({getKDText(item.kd)})
                                         </span>
                                     </td>
-                                    <td className="p-4 text-center font-mono">{item.volume.toLocaleString('ar-EG')} عملية</td>
-                                    <td className="p-4 text-center">
+                                    <td className={cn("p-4 text-center font-mono transition-all duration-300", isWideView && "border-l border-slate-100/50")}>{item.volume.toLocaleString('ar-EG')} عملية</td>
+                                    <td className={cn("p-4 text-center transition-all duration-300", isWideView && "border-l border-slate-100/50")}>
                                         <span className={cn(
                                             "px-2.5 py-1 rounded-full text-[9px] font-black uppercase border",
                                             item.platform === 'ahrefs' ? 'bg-zinc-900 text-white border-zinc-950' : 
@@ -208,7 +210,7 @@ export function KeywordsDatabase({
                                             {item.platform === 'moz' ? 'Moz (دز)' : item.platform}
                                         </span>
                                     </td>
-                                    <td className="p-4 text-slate-500 font-medium">{item.source_site}</td>
+                                    <td className={cn("p-4 text-slate-500 font-medium transition-all duration-300", isWideView && "border-l border-slate-100/50")}>{item.source_site}</td>
                                     <td className="p-4 text-center">
                                         <button
                                             onClick={() => onDeleteKeyword(item.id)}
@@ -227,7 +229,7 @@ export function KeywordsDatabase({
 
             {/* مودال منبثق لإضافة كلمة لقاعدة البيانات */}
             {showAddKeywordModal && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in duration-250">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/65 p-4 animate-in duration-250">
                     <div className="bg-white border border-slate-100 rounded-[32px] w-full max-w-md p-8 shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
                         <div className="mb-6">
                             <h3 className="text-xl font-black text-slate-900">إضافة كلمة لقاعدة المقترحات</h3>

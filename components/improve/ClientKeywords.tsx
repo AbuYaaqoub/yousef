@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Users, Plus, ArrowLeftRight, Clock, Trash2 } from 'lucide-react';
+import { Users, Plus, ArrowLeftRight, Clock, Trash2, Globe } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Client {
@@ -17,17 +17,19 @@ interface ClientKeyword {
     status: 'used' | 'changed' | 'review';
     location: string;
     review_due_at: string;
+    page_url?: string;
 }
 
 interface ClientKeywordsProps {
     selectedClient: Client;
     clientKeywords: ClientKeyword[];
     usingFallback: boolean;
-    onAddClientKeyword: (keyword: string, location: string, status: 'used' | 'changed' | 'review', reviewDays: number) => Promise<void>;
+    onAddClientKeyword: (keyword: string, location: string, status: 'used' | 'changed' | 'review', reviewDays: number, pageUrl?: string) => Promise<void>;
     onUpdateStatus: (id: string, currentStatus: 'used' | 'changed' | 'review') => Promise<void>;
     onResetTimer: (id: string, days: number) => Promise<void>;
     onDeleteClientKeyword: (id: string) => Promise<void>;
     onSwitchTab: () => void;
+    isWideView?: boolean;
 }
 
 export function ClientKeywords({
@@ -38,11 +40,13 @@ export function ClientKeywords({
     onUpdateStatus,
     onResetTimer,
     onDeleteClientKeyword,
-    onSwitchTab
+    onSwitchTab,
+    isWideView = false
 }: ClientKeywordsProps) {
     const [showAddClientKeywordModal, setShowAddClientKeywordModal] = useState(false);
     const [newClientKeywordText, setNewClientKeywordText] = useState('');
     const [newClientKeywordLocation, setNewClientKeywordLocation] = useState('الصفحة الرئيسية');
+    const [newClientKeywordUrl, setNewClientKeywordUrl] = useState('');
     const [newClientKeywordStatus, setNewClientKeywordStatus] = useState<'used' | 'changed' | 'review'>('review');
     const [newClientKeywordDays, setNewClientKeywordDays] = useState<number>(7);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -57,10 +61,12 @@ export function ClientKeywords({
                 newClientKeywordText,
                 newClientKeywordLocation,
                 newClientKeywordStatus,
-                newClientKeywordDays
+                newClientKeywordDays,
+                newClientKeywordUrl
             );
             setNewClientKeywordText('');
             setNewClientKeywordLocation('الصفحة الرئيسية');
+            setNewClientKeywordUrl('');
             setNewClientKeywordStatus('review');
             setNewClientKeywordDays(7);
             setShowAddClientKeywordModal(false);
@@ -106,14 +112,14 @@ export function ClientKeywords({
 
             {/* جدول الكلمات المستهدفة */}
             <div className="overflow-x-auto border border-slate-100 rounded-2xl">
-                <table className="w-full text-right border-collapse">
+                <table className={cn("w-full text-right border-collapse transition-all duration-300", isWideView ? "min-w-[1100px]" : "min-w-full")}>
                     <thead>
                         <tr className="bg-slate-50/80 border-b border-slate-100 text-slate-500 text-[10px] font-black uppercase tracking-wider">
-                            <th className="p-4">الكلمة المستهدفة</th>
-                            <th className="p-4 text-center">الحالة</th>
-                            <th className="p-4">مكان التواجد بالموقع</th>
-                            <th className="p-4 text-center">مؤقت المراجعة القادم</th>
-                            <th className="p-4 text-center">الإجراءات</th>
+                            <th className={cn("p-4 transition-all duration-300", isWideView ? "w-[25%] min-w-[250px] border-l border-slate-100/80" : "")}>الكلمة المستهدفة</th>
+                            <th className={cn("p-4 text-center transition-all duration-300", isWideView ? "w-[15%] min-w-[120px] border-l border-slate-100/80" : "")}>الحالة</th>
+                            <th className={cn("p-4 transition-all duration-300", isWideView ? "w-[25%] min-w-[200px] border-l border-slate-100/80" : "")}>مكان التواجد بالموقع</th>
+                            <th className={cn("p-4 text-center transition-all duration-300", isWideView ? "w-[25%] min-w-[200px] border-l border-slate-100/80" : "")}>مؤقت المراجعة القادم</th>
+                            <th className={cn("p-4 text-center transition-all duration-300", isWideView ? "w-[10%] min-w-[80px]" : "")}>الإجراءات</th>
                         </tr>
                     </thead>
                     <tbody className="text-xs font-bold text-slate-700 divide-y divide-slate-100">
@@ -129,8 +135,8 @@ export function ClientKeywords({
                                 const daysLeft = getDaysRemaining(item.review_due_at);
                                 return (
                                     <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
-                                        <td className="p-4 font-black text-slate-900">{item.keyword}</td>
-                                        <td className="p-4 text-center">
+                                        <td className={cn("p-4 font-black text-slate-900 transition-all duration-300", isWideView && "border-l border-slate-100/50")}>{item.keyword}</td>
+                                        <td className={cn("p-4 text-center transition-all duration-300", isWideView && "border-l border-slate-100/50")}>
                                             <button
                                                 onClick={() => onUpdateStatus(item.id, item.status)}
                                                 className={cn(
@@ -145,8 +151,23 @@ export function ClientKeywords({
                                                  item.status === 'changed' ? 'تم استبدالها' : 'قيد المراجعة'}
                                             </button>
                                         </td>
-                                        <td className="p-4 font-medium text-slate-600">{item.location}</td>
-                                        <td className="p-4 text-center">
+                                        <td className={cn("p-4 font-medium text-slate-600 transition-all duration-300", isWideView && "border-l border-slate-100/50")}>
+                                            <div>{item.location}</div>
+                                            {item.page_url && (
+                                                <a 
+                                                    href={item.page_url.startsWith('http') ? item.page_url : `https://${item.page_url}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="inline-flex items-center gap-1 text-[10px] text-zinc-400 hover:text-black underline mt-1 transition-colors"
+                                                    title="زيارة رابط الصفحة"
+                                                    onClick={(e) => e.stopPropagation()}
+                                                >
+                                                    <Globe size={11} />
+                                                    <span className="truncate max-w-[150px]">{item.page_url.replace(/^https?:\/\//, '')}</span>
+                                                </a>
+                                            )}
+                                        </td>
+                                        <td className={cn("p-4 text-center transition-all duration-300", isWideView && "border-l border-slate-100/50")}>
                                             <div className="flex flex-col items-center">
                                                 <span className={cn(
                                                     "inline-flex items-center gap-1 font-mono font-bold text-xs mb-1.5",
@@ -191,7 +212,7 @@ export function ClientKeywords({
 
             {/* مودال منبثق لإضافة كلمة مستهدفة للعميل */}
             {showAddClientKeywordModal && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in duration-250">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/65 p-4 animate-in duration-250">
                     <div className="bg-white border border-slate-100 rounded-[32px] w-full max-w-md p-8 shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
                         <div className="mb-6">
                             <h3 className="text-xl font-black text-slate-900">إضافة كلمة مستهدفة للعميل</h3>
@@ -220,6 +241,18 @@ export function ClientKeywords({
                                     value={newClientKeywordLocation}
                                     onChange={(e) => setNewClientKeywordLocation(e.target.value)}
                                     className="w-full bg-slate-50 border border-slate-200/80 rounded-2xl py-3 px-4 text-xs font-bold outline-none focus:border-black focus:bg-white text-slate-800 transition-all"
+                                />
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-black text-slate-600">رابط الصفحة (اختياري)</label>
+                                <input 
+                                    type="text" 
+                                    placeholder="مثال: https://bonsugar.com/espresso"
+                                    value={newClientKeywordUrl}
+                                    onChange={(e) => setNewClientKeywordUrl(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-200/80 rounded-2xl py-3 px-4 text-xs font-bold outline-none focus:border-black focus:bg-white text-slate-800 transition-all text-left"
+                                    dir="ltr"
                                 />
                             </div>
 

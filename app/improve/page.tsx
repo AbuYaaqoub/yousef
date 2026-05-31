@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Users, Plus, Database, TrendingUp, Globe } from 'lucide-react';
+import { Users, Plus, Database, TrendingUp, Globe, ListTodo, Maximize2, Minimize2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // استيراد المكونات الفرعية المقسمة
@@ -11,6 +11,7 @@ import { KeywordsDatabase } from '@/components/improve/KeywordsDatabase';
 import { ClientKeywords } from '@/components/improve/ClientKeywords';
 import { SeoAnalytics } from '@/components/improve/SeoAnalytics';
 import { ImprovementLogs } from '@/components/improve/ImprovementLogs';
+import { CrmChecklist } from '@/components/improve/CrmChecklist';
 
 // === أنواع البيانات ===
 interface Client {
@@ -38,6 +39,7 @@ interface ClientKeyword {
     status: 'used' | 'changed' | 'review';
     location: string;
     review_due_at: string;
+    page_url?: string;
     created_at?: string;
 }
 
@@ -84,82 +86,110 @@ export default function SEOClientManager() {
     const [dbChecking, setDbChecking] = useState<boolean>(true);
     
     // --- التبويب النشط الداخلي ---
-    const [activeSubTab, setActiveSubTab] = useState<'database' | 'client_keywords' | 'analytics'>('database');
+    const [activeSubTab, setActiveSubTab] = useState<'database' | 'client_keywords' | 'analytics' | 'checklist'>('database');
+    
+    // --- وضع اتساع الأعمدة والعرض الكامل للجدول ---
+    const [isWideView, setIsWideView] = useState<boolean>(false);
 
     // --- بيانات العميل المختار ---
     const [keywordsDB, setKeywordsDB] = useState<KeywordDBItem[]>([]);
     const [clientKeywords, setClientKeywords] = useState<ClientKeyword[]>([]);
     const [logs, setLogs] = useState<ImprovementLog[]>([]);
 
-    // --- حالة التحديث الأولي والاتصال بقاعدة البيانات ---
-    useEffect(() => {
-        const initDB = async () => {
-            try {
-                setDbChecking(true);
-                // محاولة استعلام سريعة للعملاء من Supabase
-                const { data, error } = await supabase
+    // --- دالة جلب العملاء وتهيئة قاعدة البيانات بشكل آمن ---
+    const fetchClients = async () => {
+        try {
+            setDbChecking(true);
+            const { data, error } = await supabase
+                .from('seo_clients')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+
+            setUsingFallback(false);
+            if (data && data.length > 0) {
+                setClients(data);
+                return data;
+            } else {
+                // إذا كان الجدول فارغاً، نملؤه افتراضياً ببيانات عينات ونولد UUIDs على جهة العميل لمنع أخطاء القيود
+                const sampleClients = DEFAULT_CLIENTS.map((c: Client) => ({
+                    ...c,
+                    id: typeof window !== 'undefined' && window.crypto && window.crypto.randomUUID 
+                        ? window.crypto.randomUUID() 
+                        : `client-${Date.now()}`
+                }));
+
+                const { data: insertedClients, error: insertErr } = await supabase
                     .from('seo_clients')
-                    .select('*')
-                    .order('created_at', { ascending: false });
-
-                if (error) throw error;
-
-                setUsingFallback(false);
-                if (data && data.length > 0) {
-                    setClients(data);
-                } else {
-                    // إذا كان الجدول فارغاً، نملؤه افتراضياً لتجربة فورية
-                    const { data: insertedClients, error: insertErr } = await supabase
-                        .from('seo_clients')
-                        .insert(DEFAULT_CLIENTS)
-                        .select();
-                    
-                    if (!insertErr && insertedClients) {
-                        setClients(insertedClients);
-                        await populateInitialDataForClient(insertedClients[0].id);
-                    }
-                }
-            } catch (err: any) {
-                console.warn('⚠️ Supabase tables missing, switching to localStorage Fallback.', err);
-                setUsingFallback(true);
+                    .insert(sampleClients)
+                    .select();
                 
-                const savedClients = localStorage.getItem('seo_clients');
-                if (savedClients) {
-                    const parsed = JSON.parse(savedClients);
-                    setClients(parsed);
-                } else {
-                    localStorage.setItem('seo_clients', JSON.stringify(DEFAULT_CLIENTS));
-                    localStorage.setItem('seo_keywords_database', JSON.stringify(DEFAULT_KEYWORDS_DB));
-                    localStorage.setItem('seo_client_keywords', JSON.stringify(DEFAULT_CLIENT_KEYWORDS));
-                    localStorage.setItem('seo_improvement_logs', JSON.stringify(DEFAULT_LOGS));
-                    setClients(DEFAULT_CLIENTS);
+                if (insertErr) throw insertErr;
+
+                if (insertedClients && insertedClients.length > 0) {
+                    setClients(insertedClients);
+                    await populateInitialDataForClient(insertedClients[0].id);
+                    return insertedClients;
                 }
-            } finally {
-                setDbChecking(false);
+            }
+        } catch (err: any) {
+            console.warn('⚠️ Supabase tables missing, switching to localStorage Fallback.', err);
+            setUsingFallback(true);
+            
+            const savedClients = localStorage.getItem('seo_clients');
+            if (savedClients) {
+                const parsed = JSON.parse(savedClients);
+                setClients(parsed);
+                return parsed;
+            } else {
+                localStorage.setItem('seo_clients', JSON.stringify(DEFAULT_CLIENTS));
+                localStorage.setItem('seo_keywords_database', JSON.stringify(DEFAULT_KEYWORDS_DB));
+                localStorage.setItem('seo_client_keywords', JSON.stringify(DEFAULT_CLIENT_KEYWORDS));
+                localStorage.setItem('seo_improvement_logs', JSON.stringify(DEFAULT_LOGS));
+                setClients(DEFAULT_CLIENTS);
+                return DEFAULT_CLIENTS;
+            }
+        } finally {
+            setDbChecking(false);
+        }
+        return [];
+    };
+
+    // --- جلب البيانات الأولي عند تحميل الصفحة ---
+    useEffect(() => {
+        fetchClients();
+    }, []);
+
+    // --- مزامنة العميل المختار مع معامل البحث في URL وتحديث البيانات تفاعلياً ---
+    useEffect(() => {
+        const syncSelectedClient = async () => {
+            if (clientIdParam) {
+                let matched = clients.find((c: Client) => c.id === clientIdParam);
+                if (matched) {
+                    setSelectedClient(matched);
+                    return;
+                }
+
+                // إذا لم نجد العميل بالذاكرة المحلية لـ state، فإنه قد أُضيف حديثاً من شريط الجنب.
+                // نقوم بإعادة جلب البيانات فوراً لضمان التزامن التفاعلي التام بدون إعادة تحميل الصفحة.
+                const updatedClients = await fetchClients();
+                matched = updatedClients.find((c: Client) => c.id === clientIdParam);
+                if (matched) {
+                    setSelectedClient(matched);
+                    return;
+                }
+            }
+
+            if (clients.length > 0) {
+                setSelectedClient(clients[0]);
+                router.replace(`/improve?client=${clients[0].id}`);
+            } else if (!dbChecking) {
+                setSelectedClient(null);
             }
         };
 
-        initDB();
-    }, []);
-
-    // --- مزامنة العميل المختار مع معامل البحث في URL ---
-    useEffect(() => {
-        if (clients.length === 0) {
-            setSelectedClient(null);
-            return;
-        }
-
-        if (clientIdParam) {
-            const matched = clients.find(c => c.id === clientIdParam);
-            if (matched) {
-                setSelectedClient(matched);
-                return;
-            }
-        }
-
-        // إذا لم يتم تحديد العميل بالرابط، نجعله الأول تلقائياً ونحدث الرابط
-        setSelectedClient(clients[0]);
-        router.replace(`/improve?client=${clients[0].id}`);
+        syncSelectedClient();
     }, [clients, clientIdParam]);
 
     // تهيئة سريعة للبيانات في السحابة
@@ -214,8 +244,18 @@ export default function SEOClientManager() {
     const handleAddKeyword = async (keyword: string, kd: number, volume: number, platform: string, source: string) => {
         if (!selectedClient) return;
 
+        const generatedId = usingFallback 
+            ? `kdb-${Date.now()}` 
+            : (typeof window !== 'undefined' && window.crypto && window.crypto.randomUUID 
+                ? window.crypto.randomUUID() 
+                : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+                    const r = Math.random() * 16 | 0;
+                    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+                })
+            );
+
         const newKeyword: KeywordDBItem = {
-            id: usingFallback ? `kdb-${Date.now()}` : undefined as any,
+            id: generatedId,
             client_id: selectedClient.id,
             keyword,
             kd,
@@ -250,15 +290,26 @@ export default function SEOClientManager() {
     };
 
     // --- أحداث كلمات العميل النشطة ---
-    const handleAddClientKeyword = async (keyword: string, location: string, status: 'used' | 'changed' | 'review', reviewDays: number) => {
+    const handleAddClientKeyword = async (keyword: string, location: string, status: 'used' | 'changed' | 'review', reviewDays: number, pageUrl?: string) => {
         if (!selectedClient) return;
 
+        const generatedId = usingFallback 
+            ? `ck-${Date.now()}` 
+            : (typeof window !== 'undefined' && window.crypto && window.crypto.randomUUID 
+                ? window.crypto.randomUUID() 
+                : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+                    const r = Math.random() * 16 | 0;
+                    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+                })
+            );
+
         const newCK: ClientKeyword = {
-            id: usingFallback ? `ck-${Date.now()}` : undefined as any,
+            id: generatedId,
             client_id: selectedClient.id,
             keyword,
             status,
             location,
+            page_url: pageUrl || '',
             review_due_at: new Date(Date.now() + reviewDays * 24 * 60 * 60 * 1000).toISOString()
         };
 
@@ -268,9 +319,29 @@ export default function SEOClientManager() {
             localStorage.setItem('seo_client_keywords', JSON.stringify(updated));
             setClientKeywords([...clientKeywords, newCK]);
         } else {
-            const { data, error } = await supabase.from('seo_client_keywords').insert([newCK]).select();
-            if (error) throw error;
-            if (data) setClientKeywords([...clientKeywords, data[0]]);
+            try {
+                const { data, error } = await supabase.from('seo_client_keywords').insert([newCK]).select();
+                if (error) {
+                    // إذا كان العمود غير موجود بعد في قاعدة بيانات العميل (خطأ 42703)
+                    if (error.code === '42703') {
+                        const fallbackCK = { ...newCK };
+                        delete fallbackCK.page_url;
+                        const { data: retryData, error: retryError } = await supabase.from('seo_client_keywords').insert([fallbackCK]).select();
+                        if (retryError) throw retryError;
+                        if (retryData) {
+                            // الحفاظ على رابط الصفحة في العرض بالواجهة الأمامية للمستند النشط
+                            setClientKeywords([...clientKeywords, { ...retryData[0], page_url: pageUrl }]);
+                        }
+                    } else {
+                        throw error;
+                    }
+                } else if (data) {
+                    setClientKeywords([...clientKeywords, data[0]]);
+                }
+            } catch (err) {
+                console.error('Database insert failed, falling back to local state:', err);
+                setClientKeywords([...clientKeywords, newCK]);
+            }
         }
     };
 
@@ -326,8 +397,18 @@ export default function SEOClientManager() {
     const handleAddLog = async (note: string) => {
         if (!selectedClient) return;
 
+        const generatedId = usingFallback 
+            ? `log-${Date.now()}` 
+            : (typeof window !== 'undefined' && window.crypto && window.crypto.randomUUID 
+                ? window.crypto.randomUUID() 
+                : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+                    const r = Math.random() * 16 | 0;
+                    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+                })
+            );
+
         const newLog: ImprovementLog = {
-            id: usingFallback ? `log-${Date.now()}` : undefined as any,
+            id: generatedId,
             client_id: selectedClient.id,
             note,
             created_at: new Date().toISOString()
@@ -394,35 +475,20 @@ export default function SEOClientManager() {
                         {/* شارة حالة البيانات */}
                         <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-white/5 border border-white/5 backdrop-blur-sm self-start sm:self-center">
                             <span className={cn("w-2 h-2 rounded-full", usingFallback ? "bg-amber-400" : "bg-emerald-500")} />
-                            <span className="text-[10px] font-black text-zinc-300">
-                                {usingFallback ? 'قاعدة بيانات محلية' : 'Supabase سحابي'}
-                            </span>
                         </div>
                     </div>
                 </div>
-            ) : !dbChecking ? (
-                <div className="p-16 bg-white border border-slate-200/80 rounded-[36px] text-center max-w-xl mx-auto shadow-sm">
-                    <div className="w-16 h-16 rounded-full bg-zinc-50 border border-zinc-100 flex items-center justify-center mx-auto mb-6 text-zinc-400">
-                        <Users size={28} />
-                    </div>
-                    <h3 className="text-xl font-black text-slate-800 mb-2">أهلاً بك في نظام إدارة السيو والعملاء</h3>
-                    <p className="text-xs text-slate-400 leading-relaxed mb-6">
-                        يرجى إضافة عميلك الأول من القائمة الجانبية (شريط عملاء السيو النشطين) للبدء في إدارة الكلمات المفتاحية ومتابعة خطط التحسين.
-                    </p>
-                </div>
-            ) : (
-                <div className="w-full h-40 bg-zinc-100 animate-pulse rounded-[32px]" />
-            )}
-
+            ) : null}
+            
             {/* 2. شاشة لوحة تحكم العميل المختار */}
             {selectedClient && (
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
                     
                     {/* الجانب الأيمن (التبويبات وجداول الكلمات والتحليلات) */}
-                    <div className="lg:col-span-8 space-y-6">
+                    <div className={cn(isWideView ? "lg:col-span-12" : "lg:col-span-8", "space-y-6 transition-all duration-500")}>
                         
                         {/* أزرار اختيار التبويب */}
-                        <div className="bg-white border border-slate-200/80 p-2 rounded-[24px] shadow-sm flex items-center justify-between gap-2 flex-wrap">
+                        <div className="bg-white border border-slate-200/80 p-2 rounded-[24px] shadow-sm flex items-center justify-between gap-3 flex-wrap">
                             <div className="flex items-center gap-1.5 flex-1 min-w-[300px]">
                                 <button
                                     onClick={() => setActiveSubTab('database')}
@@ -460,7 +526,36 @@ export default function SEOClientManager() {
                                     <TrendingUp size={14} />
                                     <span>تحليلات السيو</span>
                                 </button>
+                                <button
+                                    onClick={() => setActiveSubTab('checklist')}
+                                    className={cn(
+                                        "flex-1 py-3 px-4 text-xs font-black rounded-2xl transition-all text-center flex items-center justify-center gap-1.5",
+                                        activeSubTab === 'checklist'
+                                            ? "bg-black text-white shadow-md shadow-black/5"
+                                             : "text-zinc-500 hover:text-black hover:bg-zinc-50"
+                                    )}
+                                >
+                                    <ListTodo size={14} />
+                                    <span>خارطة طريق السيو</span>
+                                </button>
                             </div>
+
+                            {/* زر تفعيل العرض الكامل واتساع الأعمدة */}
+                            {(activeSubTab === 'database' || activeSubTab === 'client_keywords') && (
+                                <button
+                                    onClick={() => setIsWideView(!isWideView)}
+                                    className={cn(
+                                        "flex items-center gap-1.5 px-4 py-2.5 rounded-2xl border text-[11px] font-black transition-all shadow-sm duration-300",
+                                        isWideView 
+                                            ? "bg-zinc-950 border-zinc-950 text-white hover:bg-zinc-800" 
+                                            : "bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                                    )}
+                                    title={isWideView ? "العودة للتقسيم الافتراضي وتضييق الأعمدة" : "توسيع الأعمدة وعرض الجدول على كامل الشاشة"}
+                                >
+                                    {isWideView ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+                                    <span>{isWideView ? "العرض المدمج" : "اتساع الأعمدة (عرض كامل)"}</span>
+                                </button>
+                            )}
                         </div>
 
                         {/* التبويب الأول: قاعدة الكلمات */}
@@ -472,6 +567,7 @@ export default function SEOClientManager() {
                                 onAddKeyword={handleAddKeyword}
                                 onDeleteKeyword={handleDeleteKeyword}
                                 onSwitchTab={() => setActiveSubTab('client_keywords')}
+                                isWideView={isWideView}
                             />
                         )}
 
@@ -486,18 +582,32 @@ export default function SEOClientManager() {
                                 onResetTimer={handleResetTimer}
                                 onDeleteClientKeyword={handleDeleteClientKeyword}
                                 onSwitchTab={() => setActiveSubTab('database')}
+                                isWideView={isWideView}
                             />
                         )}
 
                         {/* التبويب الثالث: تحليلات السيو */}
                         {activeSubTab === 'analytics' && (
-                            <SeoAnalytics selectedClient={selectedClient} />
+                            <SeoAnalytics 
+                                selectedClient={selectedClient} 
+                                keywordsDB={keywordsDB}
+                                clientKeywords={clientKeywords}
+                                logs={logs}
+                            />
+                        )}
+
+                        {/* التبويب الرابع: خارطة طريق السيو CRM */}
+                        {activeSubTab === 'checklist' && selectedClient && (
+                            <CrmChecklist 
+                                selectedClient={selectedClient}
+                                onAddLog={handleAddLog}
+                            />
                         )}
 
                     </div>
 
                     {/* الجانب الأيسر (سجل مراحل العمل وإضافة الملاحظات) */}
-                    <div className="lg:col-span-4">
+                    <div className={cn(isWideView ? "lg:col-span-12 mt-4" : "lg:col-span-4", "transition-all duration-500")}>
                         <ImprovementLogs 
                             selectedClient={selectedClient}
                             logs={logs}
