@@ -13,7 +13,6 @@ export async function GET() {
             const { data, error } = await supabase
                 .from('leads')
                 .select('category')
-                .eq('source', 'mahally')
                 .range(from, to);
                 
             if (error) throw error;
@@ -30,8 +29,9 @@ export async function GET() {
         
         const categories = Array.from(categoriesSet).sort();
         
-        return NextResponse.json({ success: true, sheets: categories });
+        return NextResponse.json({ success: true, categories });
     } catch (error: any) {
-        return NextResponse.json({ success: false, error: error.message });
+        console.error('❌ Categories API Error:', error);
+        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 }

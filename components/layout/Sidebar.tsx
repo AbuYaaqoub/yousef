@@ -30,10 +30,7 @@ const navigation = [
     { name: 'الإعدادات والربط', href: '/settings', icon: Settings },
 ];
 
-const DEFAULT_CLIENTS = [
-    { id: 'client-1', name: 'متجر بنّ وسكر للقهوة المختصة', website: 'bonsugar.com' },
-    { id: 'client-2', name: 'رداء الأناقة للملابس الجاهزة', website: 'elegantrobe.com' }
-];
+const DEFAULT_CLIENTS: any[] = [];
 
 export function Sidebar() {
     const pathname = usePathname();
@@ -96,7 +93,7 @@ export function Sidebar() {
             if (data && data.length > 0) {
                 setClients(data);
             } else {
-                setClients(DEFAULT_CLIENTS);
+                setClients([]);
             }
         } catch (e) {
             setUsingFallback(true);
@@ -104,8 +101,8 @@ export function Sidebar() {
             if (saved) {
                 setClients(JSON.parse(saved));
             } else {
-                setClients(DEFAULT_CLIENTS);
-                localStorage.setItem('seo_clients', JSON.stringify(DEFAULT_CLIENTS));
+                setClients([]);
+                localStorage.setItem('seo_clients', JSON.stringify([]));
             }
         } finally {
             setDbChecking(false);

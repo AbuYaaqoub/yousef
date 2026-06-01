@@ -1,16 +1,34 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
     try {
-        const { data, error } = await supabase
-            .from('leads')
-            .select('category')
-            .eq('source', 'mazeed');
-            
-        if (error) throw error;
+        const categoriesSet = new Set<string>();
+        let from = 0;
+        let to = 999;
         
-        const categories = Array.from(new Set((data || []).map(item => item.category).filter(Boolean)));
+        while (true) {
+            const { data, error } = await supabase
+                .from('leads')
+                .select('category')
+                .eq('source', 'mazeed')
+                .range(from, to);
+                
+            if (error) throw error;
+            if (!data || data.length === 0) break;
+            
+            data.forEach(item => {
+                if (item.category) categoriesSet.add(item.category);
+            });
+            
+            if (data.length < 1000) break;
+            from += 1000;
+            to += 1000;
+        }
+        
+        const categories = Array.from(categoriesSet).sort();
         
         return NextResponse.json({ success: true, sheets: categories });
     } catch (error: any) {

@@ -51,28 +51,13 @@ interface ImprovementLog {
 }
 
 // === البيانات الافتراضية للتشغيل الأول والنسخ الاحتياطي ===
-const DEFAULT_CLIENTS: Client[] = [
-    { id: 'client-1', name: 'متجر بنّ وسكر للقهوة المختصة', website: 'bonsugar.com' },
-    { id: 'client-2', name: 'رداء الأناقة للملابس الجاهزة', website: 'elegantrobe.com' }
-];
+const DEFAULT_CLIENTS: Client[] = [];
 
-const DEFAULT_KEYWORDS_DB: KeywordDBItem[] = [
-    { id: 'kdb-1', client_id: 'client-1', keyword: 'قهوة مختصة الرياض', kd: 42, volume: 12000, platform: 'ahrefs', source_site: 'competitor-coffee.com' },
-    { id: 'kdb-2', client_id: 'client-1', keyword: 'اسبريسو كولومبي فاخر', kd: 18, volume: 3400, platform: 'semrush', source_site: 'coffee-hub.sa' },
-    { id: 'kdb-3', client_id: 'client-1', keyword: 'أدوات تقطير القهوة V60', kd: 55, volume: 8900, platform: 'moz', source_site: 'v60-store.com' },
-    { id: 'kdb-4', client_id: 'client-1', keyword: 'سلة محاصيل قهوة للبيع', kd: 28, volume: 5600, platform: 'ahrefs', source_site: 'salla.sa/coffee' }
-];
+const DEFAULT_KEYWORDS_DB: KeywordDBItem[] = [];
 
-const DEFAULT_CLIENT_KEYWORDS: ClientKeyword[] = [
-    { id: 'ck-1', client_id: 'client-1', keyword: 'قهوة مختصة الرياض', status: 'used', location: 'الصفحة الرئيسية', review_due_at: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000).toISOString() },
-    { id: 'ck-2', client_id: 'client-1', keyword: 'اسبريسو كولومبي فاخر', status: 'review', location: 'تصنيف محاصيل اسبريسو', review_due_at: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString() },
-    { id: 'ck-3', client_id: 'client-1', keyword: 'محاصيل بن فاخرة للتقطير', status: 'changed', location: 'صفحة منتجات التصفية', review_due_at: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString() }
-];
+const DEFAULT_CLIENT_KEYWORDS: ClientKeyword[] = [];
 
-const DEFAULT_LOGS: ImprovementLog[] = [
-    { id: 'log-1', client_id: 'client-1', note: 'تم تغيير الكلمة المفتاحية في ترويسة الصفحة الرئيسية وتضمين (قهوة مختصة الرياض) لتحسين مطابقة محركات البحث.', created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString() },
-    { id: 'log-2', client_id: 'client-1', note: 'توليد واختبار ملفات خريطة الموقع Sitemap وإرسالها بالكامل لمحرك بحث Google Search Console لضمان سرعة الفهرسة.', created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString() }
-];
+const DEFAULT_LOGS: ImprovementLog[] = [];
 
 export default function SEOClientManager() {
     const searchParams = useSearchParams();
@@ -112,26 +97,9 @@ export default function SEOClientManager() {
                 setClients(data);
                 return data;
             } else {
-                // إذا كان الجدول فارغاً، نملؤه افتراضياً ببيانات عينات ونولد UUIDs على جهة العميل لمنع أخطاء القيود
-                const sampleClients = DEFAULT_CLIENTS.map((c: Client) => ({
-                    ...c,
-                    id: typeof window !== 'undefined' && window.crypto && window.crypto.randomUUID 
-                        ? window.crypto.randomUUID() 
-                        : `client-${Date.now()}`
-                }));
-
-                const { data: insertedClients, error: insertErr } = await supabase
-                    .from('seo_clients')
-                    .insert(sampleClients)
-                    .select();
-                
-                if (insertErr) throw insertErr;
-
-                if (insertedClients && insertedClients.length > 0) {
-                    setClients(insertedClients);
-                    await populateInitialDataForClient(insertedClients[0].id);
-                    return insertedClients;
-                }
+                // إذا كان الجدول فارغاً، لا نقوم بإضافة عملاء وهميين بل نتركه فارغاً للبدء الفعلي
+                setClients([]);
+                return [];
             }
         } catch (err: any) {
             console.warn('⚠️ Supabase tables missing, switching to localStorage Fallback.', err);
@@ -143,12 +111,12 @@ export default function SEOClientManager() {
                 setClients(parsed);
                 return parsed;
             } else {
-                localStorage.setItem('seo_clients', JSON.stringify(DEFAULT_CLIENTS));
-                localStorage.setItem('seo_keywords_database', JSON.stringify(DEFAULT_KEYWORDS_DB));
-                localStorage.setItem('seo_client_keywords', JSON.stringify(DEFAULT_CLIENT_KEYWORDS));
-                localStorage.setItem('seo_improvement_logs', JSON.stringify(DEFAULT_LOGS));
-                setClients(DEFAULT_CLIENTS);
-                return DEFAULT_CLIENTS;
+                localStorage.setItem('seo_clients', JSON.stringify([]));
+                localStorage.setItem('seo_keywords_database', JSON.stringify([]));
+                localStorage.setItem('seo_client_keywords', JSON.stringify([]));
+                localStorage.setItem('seo_improvement_logs', JSON.stringify([]));
+                setClients([]);
+                return [];
             }
         } finally {
             setDbChecking(false);
@@ -195,13 +163,18 @@ export default function SEOClientManager() {
     // تهيئة سريعة للبيانات في السحابة
     const populateInitialDataForClient = async (clientId: string) => {
         try {
-            const dbItems = DEFAULT_KEYWORDS_DB.map(item => ({ ...item, client_id: clientId, id: undefined }));
-            const clientItems = DEFAULT_CLIENT_KEYWORDS.map(item => ({ ...item, client_id: clientId, id: undefined }));
-            const logItems = DEFAULT_LOGS.map(item => ({ ...item, client_id: clientId, id: undefined }));
-
-            await supabase.from('seo_keywords_database').insert(dbItems);
-            await supabase.from('seo_client_keywords').insert(clientItems);
-            await supabase.from('seo_improvement_logs').insert(logItems);
+            if (DEFAULT_KEYWORDS_DB.length > 0) {
+                const dbItems = DEFAULT_KEYWORDS_DB.map(item => ({ ...item, client_id: clientId, id: undefined }));
+                await supabase.from('seo_keywords_database').insert(dbItems);
+            }
+            if (DEFAULT_CLIENT_KEYWORDS.length > 0) {
+                const clientItems = DEFAULT_CLIENT_KEYWORDS.map(item => ({ ...item, client_id: clientId, id: undefined }));
+                await supabase.from('seo_client_keywords').insert(clientItems);
+            }
+            if (DEFAULT_LOGS.length > 0) {
+                const logItems = DEFAULT_LOGS.map(item => ({ ...item, client_id: clientId, id: undefined }));
+                await supabase.from('seo_improvement_logs').insert(logItems);
+            }
         } catch (e) {
             console.error('Failed to populate default DB items:', e);
         }
@@ -442,6 +415,19 @@ export default function SEOClientManager() {
     return (
         <div className="space-y-8 animate-fade-in pb-16">
             
+            {/* حالة عدم وجود أي عميل مضاف أو مختار */}
+            {!selectedClient && !dbChecking && (
+                <div className="flex flex-col items-center justify-center min-h-[450px] p-10 bg-white border border-slate-200/80 rounded-[32px] text-center shadow-sm max-w-2xl mx-auto my-12 animate-in duration-300">
+                    <div className="w-20 h-20 rounded-3xl bg-zinc-50 border border-zinc-100 flex items-center justify-center mb-6 text-zinc-400 shadow-inner">
+                        <Users size={36} className="text-zinc-950" />
+                    </div>
+                    <h2 className="text-xl font-black text-slate-900 mb-2">مرحباً بك في نظام إدارة السيو والعملاء (CRM)</h2>
+                    <p className="text-xs text-zinc-500 max-w-md leading-relaxed mb-6 font-medium">
+                        لم يتم اختيار أو إضافة أي عميل نشط حتى الآن. يمكنك إضافة عميلك الأول بسهولة من شريط الجانب الأيمن (عملاء السيو النشطين +) لإعداد الكلمات المفتاحية وخارطة الطريق ومتابعة سجلات التحسن.
+                    </p>
+                </div>
+            )}
+
             {/* 1. الترويسة الرئيسية الفاخرة للعميل النشط */}
             {selectedClient ? (
                 <div className="p-8 bg-black text-white rounded-[32px] shadow-lg relative overflow-hidden animate-in">

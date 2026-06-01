@@ -112,7 +112,148 @@ import { ColumnConfig } from '../types/index';
   // ══════════════════════════════════════
   //  DATABASE SYNC FUNCTION
   // ══════════════════════════════════════
+  function parseVolume(val: string): number {
+    if (!val) return 0;
+    const cleaned = val.toUpperCase().trim().replace(/,/g, '');
+    const num = parseFloat(cleaned);
+    if (isNaN(num)) return 0;
+    if (cleaned.endsWith('K')) return Math.round(num * 1000);
+    if (cleaned.endsWith('M')) return Math.round(num * 1000000);
+    if (cleaned.endsWith('B')) return Math.round(num * 1000000000);
+    return Math.round(num);
+  }
+
   async function performSync() {
+    if (syncMode === 'keywords') {
+      if (!selectedClientId) {
+        showToast('يرجى اختيار العميل المستهدف أولاً من قائمة الإعدادات ⚙️', 'error');
+        return;
+      }
+      
+      const loadingToast = showToast('جاري استخلاص وتصفية الكلمات المفتاحية... ⏳', 'loading', 0);
+
+      try {
+        const table = detectTable();
+        if (!table) {
+          loadingToast.remove();
+          showToast('لم يتم العثور على جدول في الصفحة', 'error');
+          return;
+        }
+
+        const headers = getTableHeaders(table);
+        if (!headers.length) {
+          loadingToast.remove();
+          showToast('لم يتم العثور على أعمدة', 'error');
+          return;
+        }
+
+        let rows = extractRows(table, headers);
+        rows = cleanData(rows);
+
+        if (!rows.length) {
+          loadingToast.remove();
+          showToast('لم يتم العثور على بيانات في الجدول', 'error');
+          return;
+        }
+
+        // تحديد الأعمدة المناسبة للكلمات
+        const keywordKey = headers.find(h => {
+          const hLower = h.toLowerCase();
+          return hLower === 'keyword' || hLower === 'keywords' || hLower.includes('الكلمة') || hLower.includes('الكلمات') || hLower === 'query';
+        }) || headers[0];
+
+        const kdKey = headers.find(h => {
+          const hLower = h.toLowerCase();
+          return hLower === 'kd' || hLower.includes('difficulty') || hLower.includes('صعوبة');
+        });
+
+        const volumeKey = headers.find(h => {
+          const hLower = h.toLowerCase();
+          return hLower === 'volume' || hLower.includes('حجم') || hLower.includes('search volume');
+        });
+
+        // بناء قائمة الكلمات المزامنة
+        const currentPlatform = window.location.hostname.includes('ahrefs') ? 'ahrefs' : 'semrush';
+        
+        let detectedSourceSite = '';
+        try {
+          const urlParams = new URLSearchParams(window.location.search);
+          detectedSourceSite = urlParams.get('q') || urlParams.get('query') || urlParams.get('target') || '';
+          if (!detectedSourceSite) {
+            const pathParts = window.location.pathname.split('/');
+            const domainPart = pathParts.find(p => p.includes('.') && p.length > 3 && !p.endsWith('html'));
+            if (domainPart) detectedSourceSite = domainPart;
+          }
+        } catch (e) {}
+
+        const keywordList: Array<{ keyword: string; kd: number; volume: number; platform: string; source_site: string }> = [];
+
+        rows.forEach(row => {
+          const kwText = (row[keywordKey] || '').trim();
+          if (!kwText) return;
+
+          let kdVal = 0;
+          if (kdKey) {
+            const kdStr = (row[kdKey] || '').replace(/[^0-9]/g, '');
+            kdVal = parseInt(kdStr) || 0;
+          }
+
+          let volVal = 0;
+          if (volumeKey) {
+            volVal = parseVolume(row[volumeKey] || '');
+          }
+
+          keywordList.push({
+            keyword: kwText,
+            kd: kdVal,
+            volume: volVal,
+            platform: currentPlatform,
+            source_site: detectedSourceSite
+          });
+        });
+
+        if (keywordList.length === 0) {
+          loadingToast.remove();
+          showToast('لم يتم العثور على كلمات مفتاحية صالحة في الجدول', 'error');
+          return;
+        }
+
+        loadingToast.remove();
+        const syncToast = showToast(`جاري مزامنة ${keywordList.length} كلمة مع العميل المحدد... ◆`, 'loading', 0);
+
+        const res = await fetch('http://localhost:3000/api/seo/sync-keywords', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            client_id: selectedClientId,
+            keywords: keywordList
+          })
+        });
+
+        const data = await res.json();
+        syncToast.remove();
+
+        if (res.ok && data.success) {
+          if (data.count === 0) {
+            showToast('كل الكلمات المستخرجة مضافة مسبقاً للعميل بالفعل! ✅', 'success', 3500);
+          } else {
+            showToast(`مزامنة حية! تم إضافة ${data.count} كلمة مفتاحية جديدة للعميل 🚀`, 'success', 3500);
+          }
+        } else {
+          showToast(`فشلت المزامنة: ${data.error || 'خطأ غير معروف'}`, 'error');
+        }
+
+      } catch (err: any) {
+        loadingToast.remove();
+        showToast('تعذر الاتصال بنقيب. تأكد من تشغيل تطبيق نقيب المحلي.', 'error', 3500);
+        console.error('[Naqeeb Keyword Sync Error]', err);
+      }
+
+      return;
+    }
+
     const loadingToast = showToast('جاري استخلاص وتصفية المتاجر... ⏳', 'loading', 0);
 
     try {
@@ -236,6 +377,40 @@ import { ColumnConfig } from '../types/index';
   let currentHeaders: string[] = [];
   let manualSource = '';
   let manualCategory = '';
+  let syncMode: 'leads' | 'keywords' = (localStorage.getItem('sc_sync_mode') as 'leads' | 'keywords') || 'leads';
+  let selectedClientId = localStorage.getItem('sc_selected_client_id') || '';
+  let clients: Array<{ id: string; name: string; website: string }> = [];
+
+  async function loadClientsInSelect(selectEl: HTMLSelectElement) {
+    if (!selectEl) return;
+    try {
+      const res = await fetch('http://localhost:3000/api/seo/clients');
+      const data = await res.json();
+      if (res.ok && data.success) {
+        clients = data.clients || [];
+        if (clients.length === 0) {
+          selectEl.innerHTML = '<option value="">❌ لا يوجد عملاء في لوحة التحكم</option>';
+          return;
+        }
+
+        let optionsHtml = '';
+        clients.forEach(c => {
+          const isSel = selectedClientId === c.id ? 'selected' : '';
+          optionsHtml += `<option value="${c.id}" ${isSel}>${c.name} (${c.website})</option>`;
+        });
+        selectEl.innerHTML = optionsHtml;
+
+        if (!selectedClientId || !clients.some(c => c.id === selectedClientId)) {
+          selectedClientId = clients[0].id;
+          localStorage.setItem('sc_selected_client_id', selectedClientId);
+        }
+      } else {
+        selectEl.innerHTML = '<option value="">❌ تعذر تحميل العملاء</option>';
+      }
+    } catch (err) {
+      selectEl.innerHTML = '<option value="">❌ خطأ في الاتصال باللوحة</option>';
+    }
+  }
 
   function buildColumnPanel(container: HTMLElement) {
     const table = detectTable();
@@ -275,25 +450,78 @@ import { ColumnConfig } from '../types/index';
       <div class="sc-panel-header">إعدادات المزامنة سحابياً ◆</div>
       <div class="sc-sync-settings" style="padding:12px;display:flex;flex-direction:column;gap:10px;">
         <div class="sc-setting-field" style="display:flex;flex-direction:column;gap:4px;">
-          <label style="font-size:11px;font-weight:700;color:var(--sc-text-dim);">منصة المصدر يدوياً:</label>
-          <select id="sc-sync-source" class="sc-select" style="padding:6px;font-size:12px;border:1px solid var(--sc-border);border-radius:6px;background:#fff;font-family:var(--sc-font);outline:none;cursor:pointer;">
-            <option value="semrush" ${manualSource === 'semrush' ? 'selected' : ''}>ملحق SEMrush</option>
-            <option value="ahrefs" ${manualSource === 'ahrefs' ? 'selected' : ''}>ملحق Ahrefs</option>
-            <option value="maps" ${manualSource === 'maps' ? 'selected' : ''}>خرائط جوجل</option>
-            <option value="mahally" ${manualSource === 'mahally' ? 'selected' : ''}>سلة (محلي)</option>
-            <option value="mazeed" ${manualSource === 'mazeed' ? 'selected' : ''}>زد (مزيد)</option>
-            <option value="google_scrape" ${manualSource === 'google_scrape' ? 'selected' : ''}>بحث جوجل والويب</option>
+          <label style="font-size:11px;font-weight:700;color:var(--sc-text-dim);">نوع المزامنة:</label>
+          <select id="sc-sync-mode" class="sc-select" style="padding:6px;font-size:12px;border:1px solid var(--sc-border);border-radius:6px;background:#fff;font-family:var(--sc-font);outline:none;cursor:pointer;">
+            <option value="leads" ${syncMode === 'leads' ? 'selected' : ''}>مزامنة متاجر مستهدفة (Leads)</option>
+            <option value="keywords" ${syncMode === 'keywords' ? 'selected' : ''}>مزامنة كلمات مفتاحية (Keywords)</option>
           </select>
         </div>
-        <div class="sc-setting-field" style="display:flex;flex-direction:column;gap:4px;">
-          <label style="font-size:11px;font-weight:700;color:var(--sc-text-dim);">اسم التصنيف / المشروع:</label>
-          <input type="text" id="sc-sync-category" class="sc-input" placeholder="مثال: متاجر عطور الرياض" value="${manualCategory}" style="padding:6px;font-size:12px;border:1px solid var(--sc-border);border-radius:6px;font-family:var(--sc-font);outline:none;" />
+        
+        <!-- Leads Fields -->
+        <div id="sc-leads-fields" style="display: ${syncMode === 'leads' ? 'flex' : 'none'}; flex-direction:column; gap:10px;">
+          <div class="sc-setting-field" style="display:flex;flex-direction:column;gap:4px;">
+            <label style="font-size:11px;font-weight:700;color:var(--sc-text-dim);">منصة المصدر يدوياً:</label>
+            <select id="sc-sync-source" class="sc-select" style="padding:6px;font-size:12px;border:1px solid var(--sc-border);border-radius:6px;background:#fff;font-family:var(--sc-font);outline:none;cursor:pointer;">
+              <option value="semrush" ${manualSource === 'semrush' ? 'selected' : ''}>ملحق SEMrush</option>
+              <option value="ahrefs" ${manualSource === 'ahrefs' ? 'selected' : ''}>ملحق Ahrefs</option>
+              <option value="maps" ${manualSource === 'maps' ? 'selected' : ''}>خرائط جوجل</option>
+              <option value="mahally" ${manualSource === 'mahally' ? 'selected' : ''}>سلة (محلي)</option>
+              <option value="mazeed" ${manualSource === 'mazeed' ? 'selected' : ''}>زد (مزيد)</option>
+              <option value="google_scrape" ${manualSource === 'google_scrape' ? 'selected' : ''}>بحث جوجل والويب</option>
+            </select>
+          </div>
+          <div class="sc-setting-field" style="display:flex;flex-direction:column;gap:4px;">
+            <label style="font-size:11px;font-weight:700;color:var(--sc-text-dim);">اسم التصنيف / المشروع:</label>
+            <input type="text" id="sc-sync-category" class="sc-input" placeholder="مثال: متاجر عطور الرياض" value="${manualCategory}" style="padding:6px;font-size:12px;border:1px solid var(--sc-border);border-radius:6px;font-family:var(--sc-font);outline:none;" />
+          </div>
+        </div>
+
+        <!-- Keywords Fields -->
+        <div id="sc-keywords-fields" style="display: ${syncMode === 'keywords' ? 'flex' : 'none'}; flex-direction:column; gap:10px;">
+          <div class="sc-setting-field" style="display:flex;flex-direction:column;gap:4px;">
+            <label style="font-size:11px;font-weight:700;color:var(--sc-text-dim);">العميل المستهدف:</label>
+            <select id="sc-sync-client" class="sc-select" style="padding:6px;font-size:12px;border:1px solid var(--sc-border);border-radius:6px;background:#fff;font-family:var(--sc-font);outline:none;cursor:pointer;">
+              <option value="">جاري تحميل العملاء... ⏳</option>
+            </select>
+          </div>
         </div>
       </div>
       
       <div class="sc-panel-header" style="border-top: 1px solid var(--sc-border)">الأعمدة المستخرجة</div>
       <div class="sc-column-list" id="sc-col-list"></div>
     `;
+
+    const syncModeSelect = panel.querySelector('#sc-sync-mode') as HTMLSelectElement;
+    const leadsFields = panel.querySelector('#sc-leads-fields') as HTMLElement;
+    const keywordsFields = panel.querySelector('#sc-keywords-fields') as HTMLElement;
+    const clientSelect = panel.querySelector('#sc-sync-client') as HTMLSelectElement;
+
+    if (syncModeSelect) {
+      syncModeSelect.addEventListener('change', () => {
+        syncMode = syncModeSelect.value as 'leads' | 'keywords';
+        localStorage.setItem('sc_sync_mode', syncMode);
+        
+        if (syncMode === 'leads') {
+          leadsFields.style.display = 'flex';
+          keywordsFields.style.display = 'none';
+        } else {
+          leadsFields.style.display = 'none';
+          keywordsFields.style.display = 'flex';
+          loadClientsInSelect(clientSelect);
+        }
+      });
+    }
+
+    if (syncMode === 'keywords' && clientSelect) {
+      loadClientsInSelect(clientSelect);
+    }
+
+    if (clientSelect) {
+      clientSelect.addEventListener('change', () => {
+        selectedClientId = clientSelect.value;
+        localStorage.setItem('sc_selected_client_id', selectedClientId);
+      });
+    }
 
     // Hook up manual settings listeners
     const sourceSelect = panel.querySelector('#sc-sync-source') as HTMLSelectElement;
