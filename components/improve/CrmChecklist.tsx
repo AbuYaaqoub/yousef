@@ -364,7 +364,7 @@ export function CrmChecklist({ selectedClient, onAddLog }: CrmChecklistProps) {
                 try {
                     const parsed = JSON.parse(cached);
                     // التحقق التلقائي لترقية الخارطة القديمة (إذا كان عدد المهام أقل من 10 أو عدد المهام الفرعية للمهمة الأولى أقل من 10 تفاصيل)
-                    const needsUpgrade = parsed.some((cat: any) => cat.tasks && (cat.tasks.length < 10 || (cat.tasks[0] && cat.tasks[0].subtasks && cat.tasks[0].subtasks.length < 10)));
+                    const needsUpgrade = parsed.length === 0 || parsed.some((cat: any) => cat.tasks && (cat.tasks.length < 10 || (cat.tasks[0] && cat.tasks[0].subtasks && cat.tasks[0].subtasks.length < 10)));
                     if (needsUpgrade) {
                         loadDefaultRoadmap();
                     } else {
@@ -388,21 +388,31 @@ export function CrmChecklist({ selectedClient, onAddLog }: CrmChecklistProps) {
     const loadDefaultRoadmap = () => {
         const defaultCats: RoadmapCategory[] = [
             {
-                id: 'cat-1',
-                name: 'خارطة طريق الصفحة الرئيسية 🏠',
-                keyword: 'قهوة مختصة الرياض',
-                initialRank: 42,
-                currentRank: 12,
+                id: `cat-${selectedClient.id}-home`,
+                name: 'الصفحة الرئيسية للموقع 🏠',
+                keyword: `سيو ${selectedClient.name}`,
+                initialRank: 50,
+                currentRank: 50,
                 device: 'mobile',
                 country: 'السعودية 🇸🇦',
                 tasks: DEFAULT_SEO_CHECKLIST()
             },
             {
-                id: 'cat-2',
-                name: 'تصنيف محاصيل القهوة المختصة ☕',
-                keyword: 'أدوات تقطير V60',
-                initialRank: 65,
-                currentRank: 18,
+                id: `cat-${selectedClient.id}-services`,
+                name: 'صفحة الخدمات / المنتجات الرئيسية 💼',
+                keyword: `خدمات ${selectedClient.name}`,
+                initialRank: 60,
+                currentRank: 60,
+                device: 'mobile',
+                country: 'السعودية 🇸🇦',
+                tasks: DEFAULT_SEO_CHECKLIST()
+            },
+            {
+                id: `cat-${selectedClient.id}-blog`,
+                name: 'المدونة والمقالات التثقيفية ✍️',
+                keyword: `معلومات عن ${selectedClient.name}`,
+                initialRank: 70,
+                currentRank: 70,
                 device: 'mobile',
                 country: 'السعودية 🇸🇦',
                 tasks: DEFAULT_SEO_CHECKLIST()

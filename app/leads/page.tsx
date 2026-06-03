@@ -32,6 +32,8 @@ export default function LeadsPage() {
     const [hasPhone, setHasPhone] = useState(false);
     const [isStrong, setIsStrong] = useState(false);
     const [selectedSource, setSelectedSource] = useState<string>(''); // empty means all
+    const [categories, setCategories] = useState<string[]>([]);
+    const [selectedCategory, setSelectedCategory] = useState<string>('');
 
     // Data state
     const [leads, setLeads] = useState<Lead[]>([]);
@@ -45,6 +47,22 @@ export default function LeadsPage() {
     const [exporting, setExporting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    // Fetch categories on mount
+    useEffect(() => {
+        const fetchCategories = async () => {
+            try {
+                const res = await fetch('/api/leads/categories');
+                const data = await res.json();
+                if (data.success) {
+                    setCategories(data.categories);
+                }
+            } catch (err) {
+                console.error('Failed to fetch categories:', err);
+            }
+        };
+        fetchCategories();
+    }, []);
+
     // Fetch leads function
     const fetchLeads = useCallback(async () => {
         setLoading(true);
@@ -56,6 +74,7 @@ export default function LeadsPage() {
             if (hasPhone) params.append('hasPhone', 'true');
             if (isStrong) params.append('isStrong', 'true');
             if (selectedSource) params.append('source', selectedSource);
+            if (selectedCategory) params.append('category', selectedCategory);
             params.append('limit', '100');
 
             const res = await fetch(`/api/leads?${params.toString()}`);
@@ -73,7 +92,7 @@ export default function LeadsPage() {
         } finally {
             setLoading(false);
         }
-    }, [searchQuery, hasEmail, hasPhone, isStrong, selectedSource]);
+    }, [searchQuery, hasEmail, hasPhone, isStrong, selectedSource, selectedCategory]);
 
     // Fetch on filter change
     useEffect(() => {
@@ -167,6 +186,17 @@ export default function LeadsPage() {
                             <option value="google_scrape">بحث جوجل والويب</option>
                             <option value="semrush_plugin">ملحق SEMrush</option>
                             <option value="ahrefs_plugin">ملحق Ahrefs</option>
+                        </select>
+
+                        <select
+                            value={selectedCategory}
+                            onChange={(e) => setSelectedCategory(e.target.value)}
+                            className="bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-black max-w-[180px]"
+                        >
+                            <option value="">كل التصنيفات</option>
+                            {categories.map(cat => (
+                                <option key={cat} value={cat}>{cat}</option>
+                            ))}
                         </select>
 
                         <ActionButton

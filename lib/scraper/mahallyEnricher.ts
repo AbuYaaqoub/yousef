@@ -148,12 +148,14 @@ export async function enrichMahallyData(targetSheetName?: string) {
                     const excelRow = {
                         storeName: store.store_name,
                         website: firstResultUrl,
+                        domain: firstResultUrl, // compatibility key for frontend
                         email: info.email || '',
                         phone: info.phone || info.whatsapp || '',
                         instagram: info.instagram || '',
                         tiktok: info.tiktok || '',
                         snapchat: info.snapchat || '',
-                        mahallyUrl: store.mahally_url || ''
+                        mahallyUrl: store.mahally_url || '',
+                        rating: rating // lead quality rating
                     };
 
                     results.push(excelRow);

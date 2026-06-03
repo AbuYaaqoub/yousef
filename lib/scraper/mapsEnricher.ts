@@ -212,6 +212,7 @@ export async function enrichMapsData(targetSheetName?: string) {
             reviewsCount: reviewsCount || 0,
             address: address || '',
             website: websiteUrl || 'غير متوفر',
+            domain: websiteUrl || 'غير متوفر', // compatibility key for frontend
             email: enrichedInfo.email || '',
             phone: enrichedInfo.phone || '',
             instagram: enrichedInfo.instagram || '',
