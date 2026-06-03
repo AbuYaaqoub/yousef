@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Users, Plus, Database, TrendingUp, Globe, ListTodo, Maximize2, Minimize2 } from 'lucide-react';
+import { Users, Plus, Database, TrendingUp, Globe, ListTodo, Maximize2, Minimize2, FileText, Folder } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // استيراد المكونات الفرعية المقسمة
@@ -12,6 +12,8 @@ import { ClientKeywords } from '@/components/improve/ClientKeywords';
 import { SeoAnalytics } from '@/components/improve/SeoAnalytics';
 import { ImprovementLogs } from '@/components/improve/ImprovementLogs';
 import { CrmChecklist } from '@/components/improve/CrmChecklist';
+import { ClientBriefAssets } from '@/components/improve/ClientBriefAssets';
+import { KeywordCategories } from '@/components/improve/KeywordCategories';
 
 // === أنواع البيانات ===
 interface Client {
@@ -29,6 +31,9 @@ interface KeywordDBItem {
     volume: number;
     platform: string;
     source_site: string;
+    intent?: string;
+    cpc?: number;
+    sf?: string;
     created_at?: string;
 }
 
@@ -40,6 +45,13 @@ interface ClientKeyword {
     location: string;
     review_due_at: string;
     page_url?: string;
+    kd?: number;
+    volume?: number;
+    platform?: string;
+    source_site?: string;
+    intent?: string;
+    cpc?: number;
+    sf?: string;
     created_at?: string;
 }
 
@@ -71,7 +83,7 @@ export default function SEOClientManager() {
     const [dbChecking, setDbChecking] = useState<boolean>(true);
     
     // --- التبويب النشط الداخلي ---
-    const [activeSubTab, setActiveSubTab] = useState<'database' | 'client_keywords' | 'analytics' | 'checklist'>('database');
+    const [activeSubTab, setActiveSubTab] = useState<'database' | 'client_keywords' | 'analytics' | 'checklist' | 'brief_assets' | 'categories'>('database');
     
     // --- وضع اتساع الأعمدة والعرض الكامل للجدول ---
     const [isWideView, setIsWideView] = useState<boolean>(false);
@@ -214,9 +226,17 @@ export default function SEOClientManager() {
     }, [selectedClient, usingFallback]);
 
     // --- أحداث قاعدة الكلمات المفتاحية المقترحة ---
-    const handleAddKeyword = async (keyword: string, kd: number, volume: number, platform: string, source: string) => {
-        if (!selectedClient) return;
-
+    const handleAddKeyword = async (
+        clientId: string,
+        keyword: string,
+        kd: number,
+        volume: number,
+        platform: string,
+        source: string,
+        intent?: string,
+        cpc?: number,
+        sf?: string
+    ) => {
         const generatedId = usingFallback 
             ? `kdb-${Date.now()}` 
             : (typeof window !== 'undefined' && window.crypto && window.crypto.randomUUID 
@@ -229,23 +249,56 @@ export default function SEOClientManager() {
 
         const newKeyword: KeywordDBItem = {
             id: generatedId,
-            client_id: selectedClient.id,
+            client_id: clientId,
             keyword,
             kd,
             volume,
             platform,
-            source_site: source
+            source_site: source,
+            intent: intent || '',
+            cpc: cpc || 0.0,
+            sf: sf || ''
         };
 
         if (usingFallback) {
             const localKDB = JSON.parse(localStorage.getItem('seo_keywords_database') || '[]');
             const updated = [...localKDB, newKeyword];
             localStorage.setItem('seo_keywords_database', JSON.stringify(updated));
-            setKeywordsDB([...keywordsDB, newKeyword]);
+            if (selectedClient && clientId === selectedClient.id) {
+                setKeywordsDB([...keywordsDB, newKeyword]);
+            }
         } else {
-            const { data, error } = await supabase.from('seo_keywords_database').insert([newKeyword]).select();
-            if (error) throw error;
-            if (data) setKeywordsDB([...keywordsDB, data[0]]);
+            try {
+                const { data, error } = await supabase.from('seo_keywords_database').insert([newKeyword]).select();
+                if (error) {
+                    if (error.code === '42703') {
+                        const fallbackKeyword = { ...newKeyword };
+                        delete fallbackKeyword.intent;
+                        delete fallbackKeyword.cpc;
+                        delete fallbackKeyword.sf;
+                        
+                        const { data: retryData, error: retryError } = await supabase.from('seo_keywords_database').insert([fallbackKeyword]).select();
+                        if (retryError) throw retryError;
+                        if (retryData && selectedClient && clientId === selectedClient.id) {
+                            setKeywordsDB([...keywordsDB, { 
+                                ...retryData[0],
+                                intent: intent,
+                                cpc: cpc,
+                                sf: sf
+                            }]);
+                        }
+                    } else {
+                        throw error;
+                    }
+                } else if (data && selectedClient && clientId === selectedClient.id) {
+                    setKeywordsDB([...keywordsDB, data[0]]);
+                }
+            } catch (err) {
+                console.error('Database insert failed, falling back to local state:', err);
+                if (selectedClient && clientId === selectedClient.id) {
+                    setKeywordsDB([...keywordsDB, newKeyword]);
+                }
+            }
         }
     };
 
@@ -263,9 +316,21 @@ export default function SEOClientManager() {
     };
 
     // --- أحداث كلمات العميل النشطة ---
-    const handleAddClientKeyword = async (keyword: string, location: string, status: 'used' | 'changed' | 'review', reviewDays: number, pageUrl?: string) => {
-        if (!selectedClient) return;
-
+    const handleAddClientKeyword = async (
+        clientId: string,
+        keyword: string,
+        location: string,
+        status: 'used' | 'changed' | 'review',
+        reviewDays: number,
+        pageUrl?: string,
+        kd?: number,
+        volume?: number,
+        platform?: string,
+        sourceSite?: string,
+        intent?: string,
+        cpc?: number,
+        sf?: string
+    ) => {
         const generatedId = usingFallback 
             ? `ck-${Date.now()}` 
             : (typeof window !== 'undefined' && window.crypto && window.crypto.randomUUID 
@@ -278,11 +343,18 @@ export default function SEOClientManager() {
 
         const newCK: ClientKeyword = {
             id: generatedId,
-            client_id: selectedClient.id,
+            client_id: clientId,
             keyword,
             status,
             location,
             page_url: pageUrl || '',
+            kd: kd || 0,
+            volume: volume || 0,
+            platform: platform || 'semrush',
+            source_site: sourceSite || '',
+            intent: intent || '',
+            cpc: cpc || 0.0,
+            sf: sf || '',
             review_due_at: new Date(Date.now() + reviewDays * 24 * 60 * 60 * 1000).toISOString()
         };
 
@@ -290,30 +362,51 @@ export default function SEOClientManager() {
             const localCK = JSON.parse(localStorage.getItem('seo_client_keywords') || '[]');
             const updated = [...localCK, newCK];
             localStorage.setItem('seo_client_keywords', JSON.stringify(updated));
-            setClientKeywords([...clientKeywords, newCK]);
+            if (selectedClient && clientId === selectedClient.id) {
+                setClientKeywords([...clientKeywords, newCK]);
+            }
         } else {
             try {
                 const { data, error } = await supabase.from('seo_client_keywords').insert([newCK]).select();
                 if (error) {
-                    // إذا كان العمود غير موجود بعد في قاعدة بيانات العميل (خطأ 42703)
+                    // إذا كانت الأعمدة الجديدة غير موجودة بعد في قاعدة بيانات العميل (خطأ 42703)
                     if (error.code === '42703') {
                         const fallbackCK = { ...newCK };
                         delete fallbackCK.page_url;
+                        delete fallbackCK.kd;
+                        delete fallbackCK.volume;
+                        delete fallbackCK.platform;
+                        delete fallbackCK.source_site;
+                        delete fallbackCK.intent;
+                        delete fallbackCK.cpc;
+                        delete fallbackCK.sf;
+                        
                         const { data: retryData, error: retryError } = await supabase.from('seo_client_keywords').insert([fallbackCK]).select();
                         if (retryError) throw retryError;
-                        if (retryData) {
-                            // الحفاظ على رابط الصفحة في العرض بالواجهة الأمامية للمستند النشط
-                            setClientKeywords([...clientKeywords, { ...retryData[0], page_url: pageUrl }]);
+                        if (retryData && selectedClient && clientId === selectedClient.id) {
+                            setClientKeywords([...clientKeywords, { 
+                                ...retryData[0], 
+                                page_url: pageUrl,
+                                kd: kd,
+                                volume: volume,
+                                platform: platform,
+                                source_site: sourceSite,
+                                intent: intent,
+                                cpc: cpc,
+                                sf: sf
+                            }]);
                         }
                     } else {
                         throw error;
                     }
-                } else if (data) {
+                } else if (data && selectedClient && clientId === selectedClient.id) {
                     setClientKeywords([...clientKeywords, data[0]]);
                 }
             } catch (err) {
                 console.error('Database insert failed, falling back to local state:', err);
-                setClientKeywords([...clientKeywords, newCK]);
+                if (selectedClient && clientId === selectedClient.id) {
+                    setClientKeywords([...clientKeywords, newCK]);
+                }
             }
         }
     };
@@ -501,6 +594,18 @@ export default function SEOClientManager() {
                                     <span>كلمات العميل النشطة</span>
                                 </button>
                                 <button
+                                    onClick={() => setActiveSubTab('categories')}
+                                    className={cn(
+                                        "flex-1 py-3 px-4 text-xs font-black rounded-2xl transition-all text-center flex items-center justify-center gap-1.5",
+                                        activeSubTab === 'categories'
+                                            ? "bg-black text-white shadow-md shadow-black/5"
+                                            : "text-zinc-500 hover:text-black hover:bg-zinc-50"
+                                    )}
+                                >
+                                    <Folder size={14} />
+                                    <span>تصنيف الكلمات</span>
+                                </button>
+                                <button
                                     onClick={() => setActiveSubTab('analytics')}
                                     className={cn(
                                         "flex-1 py-3 px-4 text-xs font-black rounded-2xl transition-all text-center flex items-center justify-center gap-1.5",
@@ -524,10 +629,22 @@ export default function SEOClientManager() {
                                     <ListTodo size={14} />
                                     <span>خارطة طريق السيو</span>
                                 </button>
+                                <button
+                                    onClick={() => setActiveSubTab('brief_assets')}
+                                    className={cn(
+                                        "flex-1 py-3 px-4 text-xs font-black rounded-2xl transition-all text-center flex items-center justify-center gap-1.5",
+                                        activeSubTab === 'brief_assets'
+                                            ? "bg-black text-white shadow-md shadow-black/5"
+                                             : "text-zinc-500 hover:text-black hover:bg-zinc-50"
+                                    )}
+                                >
+                                    <FileText size={14} />
+                                    <span>ملف البريف والأسس</span>
+                                </button>
                             </div>
 
                             {/* زر تفعيل العرض الكامل واتساع الأعمدة */}
-                            {(activeSubTab === 'database' || activeSubTab === 'client_keywords') && (
+                            {(activeSubTab === 'database' || activeSubTab === 'client_keywords' || activeSubTab === 'brief_assets' || activeSubTab === 'categories') && (
                                 <button
                                     onClick={() => setIsWideView(!isWideView)}
                                     className={cn(
@@ -548,6 +665,7 @@ export default function SEOClientManager() {
                         {activeSubTab === 'database' && (
                             <KeywordsDatabase 
                                 selectedClient={selectedClient}
+                                clients={clients}
                                 keywordsDB={keywordsDB}
                                 usingFallback={usingFallback}
                                 onAddKeyword={handleAddKeyword}
@@ -561,6 +679,7 @@ export default function SEOClientManager() {
                         {activeSubTab === 'client_keywords' && (
                             <ClientKeywords 
                                 selectedClient={selectedClient}
+                                clients={clients}
                                 clientKeywords={clientKeywords}
                                 usingFallback={usingFallback}
                                 onAddClientKeyword={handleAddClientKeyword}
@@ -587,6 +706,23 @@ export default function SEOClientManager() {
                             <CrmChecklist 
                                 selectedClient={selectedClient}
                                 onAddLog={handleAddLog}
+                            />
+                        )}
+
+                        {/* التبويب الخامس: ملف البريف وأسس الهوية البصرية */}
+                        {activeSubTab === 'brief_assets' && selectedClient && (
+                            <ClientBriefAssets 
+                                selectedClient={selectedClient}
+                                usingFallback={usingFallback}
+                            />
+                        )}
+
+                        {/* التبويب السادس: تصنيف ومجموعات الكلمات المفتاحية */}
+                        {activeSubTab === 'categories' && selectedClient && (
+                            <KeywordCategories 
+                                selectedClient={selectedClient}
+                                clientKeywords={clientKeywords}
+                                usingFallback={usingFallback}
                             />
                         )}
 

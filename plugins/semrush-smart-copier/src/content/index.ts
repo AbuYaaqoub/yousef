@@ -172,6 +172,21 @@ import { ColumnConfig } from '../types/index';
           return hLower === 'volume' || hLower.includes('حجم') || hLower.includes('search volume');
         });
 
+        const intentKey = headers.find(h => {
+          const hLower = h.toLowerCase();
+          return hLower === 'intent' || hLower.includes('نية') || hLower.includes('قصد');
+        });
+
+        const cpcKey = headers.find(h => {
+          const hLower = h.toLowerCase();
+          return hLower === 'cpc' || hLower.includes('cpc') || hLower.includes('سعر النقرة') || hLower.includes('تكلفة');
+        });
+
+        const sfKey = headers.find(h => {
+          const hLower = h.toLowerCase();
+          return hLower === 'sf' || hLower === 'serp features' || hLower.includes('ميزات') || hLower.includes('ميزة');
+        });
+
         // بناء قائمة الكلمات المزامنة
         const currentPlatform = window.location.hostname.includes('ahrefs') ? 'ahrefs' : 'semrush';
         
@@ -186,7 +201,16 @@ import { ColumnConfig } from '../types/index';
           }
         } catch (e) {}
 
-        const keywordList: Array<{ keyword: string; kd: number; volume: number; platform: string; source_site: string }> = [];
+        const keywordList: Array<{ 
+          keyword: string; 
+          kd: number; 
+          volume: number; 
+          platform: string; 
+          source_site: string;
+          intent: string;
+          cpc: number;
+          sf: string;
+        }> = [];
 
         rows.forEach(row => {
           const kwText = (row[keywordKey] || '').trim();
@@ -203,12 +227,31 @@ import { ColumnConfig } from '../types/index';
             volVal = parseVolume(row[volumeKey] || '');
           }
 
+          let intentVal = '';
+          if (intentKey) {
+            intentVal = (row[intentKey] || '').trim();
+          }
+
+          let cpcVal = 0.0;
+          if (cpcKey) {
+            const cpcStr = (row[cpcKey] || '').replace(/[^0-9.]/g, '');
+            cpcVal = parseFloat(cpcStr) || 0.0;
+          }
+
+          let sfVal = '';
+          if (sfKey) {
+            sfVal = (row[sfKey] || '').trim();
+          }
+
           keywordList.push({
             keyword: kwText,
             kd: kdVal,
             volume: volVal,
             platform: currentPlatform,
-            source_site: detectedSourceSite
+            source_site: detectedSourceSite,
+            intent: intentVal,
+            cpc: cpcVal,
+            sf: sfVal
           });
         });
 

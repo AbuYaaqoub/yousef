@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Database, Plus, ArrowLeftRight, Search, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -18,13 +18,27 @@ interface KeywordDBItem {
     volume: number;
     platform: string;
     source_site: string;
+    intent?: string;
+    cpc?: number;
+    sf?: string;
 }
 
 interface KeywordsDatabaseProps {
     selectedClient: Client;
+    clients: Client[];
     keywordsDB: KeywordDBItem[];
     usingFallback: boolean;
-    onAddKeyword: (keyword: string, kd: number, volume: number, platform: string, source: string) => Promise<void>;
+    onAddKeyword: (
+        clientId: string,
+        keyword: string,
+        kd: number,
+        volume: number,
+        platform: string,
+        source: string,
+        intent?: string,
+        cpc?: number,
+        sf?: string
+    ) => Promise<void>;
     onDeleteKeyword: (id: string) => Promise<void>;
     onSwitchTab: () => void;
     isWideView?: boolean;
@@ -32,6 +46,7 @@ interface KeywordsDatabaseProps {
 
 export function KeywordsDatabase({
     selectedClient,
+    clients = [],
     keywordsDB,
     usingFallback,
     onAddKeyword,
@@ -44,12 +59,24 @@ export function KeywordsDatabase({
     const [kdFilter, setKdFilter] = useState('all');
 
     const [showAddKeywordModal, setShowAddKeywordModal] = useState(false);
+    const [targetClientId, setTargetClientId] = useState(selectedClient.id);
+    const [successMessage, setSuccessMessage] = useState('');
+    
     const [newKeywordText, setNewKeywordText] = useState('');
     const [newKeywordKD, setNewKeywordKD] = useState(30);
     const [newKeywordVolume, setNewKeywordVolume] = useState(1500);
     const [newKeywordPlatform, setNewKeywordPlatform] = useState('ahrefs');
     const [newKeywordSource, setNewKeywordSource] = useState('');
+    
+    // حقول مقاييس SEMrush الجديدة الاختيارية
+    const [newKeywordIntent, setNewKeywordIntent] = useState('');
+    const [newKeywordCPC, setNewKeywordCPC] = useState<number>(0.0);
+    const [newKeywordSF, setNewKeywordSF] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    useEffect(() => {
+        setTargetClientId(selectedClient.id);
+    }, [selectedClient]);
 
     const handleAddSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -58,17 +85,42 @@ export function KeywordsDatabase({
         try {
             setIsSubmitting(true);
             await onAddKeyword(
+                targetClientId,
                 newKeywordText,
                 newKeywordKD,
                 newKeywordVolume,
                 newKeywordPlatform,
-                newKeywordSource || 'بحث عضوي'
+                newKeywordSource || 'بحث عضوي',
+                newKeywordIntent,
+                newKeywordCPC,
+                newKeywordSF
             );
-            setNewKeywordText('');
-            setNewKeywordKD(30);
-            setNewKeywordVolume(1500);
-            setNewKeywordSource('');
-            setShowAddKeywordModal(false);
+
+            // إذا كان العميل المختار مختلفاً عن العميل النشط الحالي
+            if (targetClientId !== selectedClient.id) {
+                const targetClientName = clients.find(c => c.id === targetClientId)?.name || 'العميل المختار';
+                setSuccessMessage(`تمت إضافة الكلمة بنجاح للعميل (${targetClientName})! ✅`);
+                setTimeout(() => {
+                    setNewKeywordText('');
+                    setNewKeywordKD(30);
+                    setNewKeywordVolume(1500);
+                    setNewKeywordSource('');
+                    setNewKeywordIntent('');
+                    setNewKeywordCPC(0.0);
+                    setNewKeywordSF('');
+                    setSuccessMessage('');
+                    setShowAddKeywordModal(false);
+                }, 1500);
+            } else {
+                setNewKeywordText('');
+                setNewKeywordKD(30);
+                setNewKeywordVolume(1500);
+                setNewKeywordSource('');
+                setNewKeywordIntent('');
+                setNewKeywordCPC(0.0);
+                setNewKeywordSF('');
+                setShowAddKeywordModal(false);
+            }
         } catch (err) {
             console.error('Error adding keyword:', err);
         } finally {
@@ -174,18 +226,21 @@ export function KeywordsDatabase({
                 <table className={cn("w-full text-right border-collapse transition-all duration-300", isWideView ? "min-w-[1100px]" : "min-w-full")}>
                     <thead>
                         <tr className="bg-slate-50/80 border-b border-slate-100 text-slate-500 text-[10px] font-black uppercase tracking-wider">
-                            <th className={cn("p-4 transition-all duration-300", isWideView ? "w-[25%] min-w-[250px] border-l border-slate-100/80" : "")}>الكلمة المفتاحية</th>
-                            <th className={cn("p-4 text-center transition-all duration-300", isWideView ? "w-[12%] min-w-[110px] border-l border-slate-100/80" : "")}>الصعوبة KD</th>
-                            <th className={cn("p-4 text-center transition-all duration-300", isWideView ? "w-[18%] min-w-[150px] border-l border-slate-100/80" : "")}>حجم البحث الشهري</th>
-                            <th className={cn("p-4 text-center transition-all duration-300", isWideView ? "w-[15%] min-w-[120px] border-l border-slate-100/80" : "")}>المنصة المصدر</th>
-                            <th className={cn("p-4 transition-all duration-300", isWideView ? "w-[20%] min-w-[200px] border-l border-slate-100/80" : "")}>الموقع المصدر</th>
-                            <th className={cn("p-4 text-center transition-all duration-300", isWideView ? "w-[10%] min-w-[80px]" : "")}>الإجراءات</th>
+                            <th className={cn("p-4 transition-all duration-300", isWideView ? "w-[18%] min-w-[180px] border-l border-slate-100/80" : "")}>الكلمة المفتاحية</th>
+                            <th className={cn("p-4 text-center transition-all duration-300", isWideView ? "w-[10%] min-w-[90px] border-l border-slate-100/80" : "")}>نية البحث</th>
+                            <th className={cn("p-4 text-center transition-all duration-300", isWideView ? "w-[10%] min-w-[90px] border-l border-slate-100/80" : "")}>الصعوبة KD</th>
+                            <th className={cn("p-4 text-center transition-all duration-300", isWideView ? "w-[12%] min-w-[110px] border-l border-slate-100/80" : "")}>حجم البحث الشهري</th>
+                            <th className={cn("p-4 text-center transition-all duration-300", isWideView ? "w-[10%] min-w-[90px] border-l border-slate-100/80" : "")}>CPC (نقرة)</th>
+                            <th className={cn("p-4 text-center transition-all duration-300", isWideView ? "w-[12%] min-w-[110px] border-l border-slate-100/80" : "")}>ميزات البحث SF</th>
+                            <th className={cn("p-4 text-center transition-all duration-300", isWideView ? "w-[10%] min-w-[90px] border-l border-slate-100/80" : "")}>المنصة المصدر</th>
+                            <th className={cn("p-4 transition-all duration-300", isWideView ? "w-[12%] min-w-[110px] border-l border-slate-100/80" : "")}>الموقع المصدر</th>
+                            <th className={cn("p-4 text-center transition-all duration-300", isWideView ? "w-[6%] min-w-[60px]" : "")}>الإجراءات</th>
                         </tr>
                     </thead>
                     <tbody className="text-xs font-bold text-slate-700 divide-y divide-slate-100">
                         {filteredKeywordsDB.length === 0 ? (
                             <tr>
-                                <td colSpan={6} className="p-12 text-center text-slate-400">
+                                <td colSpan={9} className="p-12 text-center text-slate-400">
                                     <Database className="mx-auto mb-3 text-slate-300" size={24} />
                                     <span>لا توجد كلمات مفتاحية تطابق خيارات التصفية الحالية</span>
                                 </td>
@@ -194,12 +249,45 @@ export function KeywordsDatabase({
                             filteredKeywordsDB.map((item) => (
                                 <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
                                     <td className={cn("p-4 font-black text-slate-900 transition-all duration-300", isWideView && "border-l border-slate-100/50")}>{item.keyword}</td>
+                                    
+                                    {/* نية البحث */}
+                                    <td className={cn("p-4 text-center transition-all duration-300", isWideView && "border-l border-slate-100/50")}>
+                                        {item.intent ? (
+                                            <span className={cn(
+                                                "px-2 py-0.5 rounded-md text-[9px] font-black uppercase border",
+                                                item.intent.toLowerCase().includes('info') ? 'bg-blue-50 border-blue-100 text-blue-700' :
+                                                item.intent.toLowerCase().includes('comm') ? 'bg-purple-50 border-purple-100 text-purple-700' :
+                                                item.intent.toLowerCase().includes('trans') ? 'bg-emerald-50 border-emerald-100 text-emerald-700' :
+                                                'bg-slate-50 border-slate-200 text-slate-600'
+                                            )}>
+                                                {item.intent}
+                                            </span>
+                                        ) : (
+                                            <span className="text-slate-300 text-[10px] font-bold">-</span>
+                                        )}
+                                    </td>
+
                                     <td className={cn("p-4 text-center transition-all duration-300", isWideView && "border-l border-slate-100/50")}>
                                         <span className={cn("px-2.5 py-1 rounded-full border text-[10px] font-black inline-block min-w-[55px]", getKDColorClass(item.kd))}>
                                             {item.kd}% ({getKDText(item.kd)})
                                         </span>
                                     </td>
                                     <td className={cn("p-4 text-center font-mono transition-all duration-300", isWideView && "border-l border-slate-100/50")}>{item.volume.toLocaleString('ar-EG')} عملية</td>
+                                    
+                                    {/* سعر النقرة CPC */}
+                                    <td className={cn("p-4 text-center font-mono text-slate-600 transition-all duration-300", isWideView && "border-l border-slate-100/50")}>
+                                        {item.cpc !== undefined && item.cpc > 0 ? (
+                                            <span className="text-zinc-700">${item.cpc.toFixed(2)}</span>
+                                        ) : (
+                                            <span className="text-slate-300 text-[10px] font-bold">-</span>
+                                        )}
+                                    </td>
+
+                                    {/* ميزات نتائج البحث SF */}
+                                    <td className={cn("p-4 text-center text-slate-500 font-medium truncate max-w-[120px] transition-all duration-300", isWideView && "border-l border-slate-100/50")} title={item.sf}>
+                                        {item.sf || <span className="text-slate-300 text-[10px] font-bold">-</span>}
+                                    </td>
+
                                     <td className={cn("p-4 text-center transition-all duration-300", isWideView && "border-l border-slate-100/50")}>
                                         <span className={cn(
                                             "px-2.5 py-1 rounded-full text-[9px] font-black uppercase border",
@@ -230,13 +318,32 @@ export function KeywordsDatabase({
             {/* مودال منبثق لإضافة كلمة لقاعدة البيانات */}
             {showAddKeywordModal && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/65 p-4 animate-in duration-250">
-                    <div className="bg-white border border-slate-100 rounded-[32px] w-full max-w-md p-8 shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
+                    <div className="bg-white border border-slate-100 rounded-[32px] w-full max-w-md p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                         <div className="mb-6">
                             <h3 className="text-xl font-black text-slate-900">إضافة كلمة لقاعدة المقترحات</h3>
-                            <p className="text-[10px] text-slate-400 font-bold mt-1">إضافة كلمة مقترحة جديدة للعميل الحالي مع تحديد مقاييسها وقناتها</p>
+                            <p className="text-[10px] text-slate-400 font-bold mt-1">إضافة كلمة مقترحة جديدة للعميل المختار مع تحديد مقاييسها وقناتها</p>
                         </div>
 
+                        {successMessage && (
+                            <div className="p-4 mb-4 text-xs font-black text-emerald-800 bg-emerald-50 border border-emerald-100 rounded-2xl animate-pulse text-center">
+                                {successMessage}
+                            </div>
+                        )}
+
                         <form onSubmit={handleAddSubmit} className="space-y-4">
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-black text-slate-600">العميل المستهدف</label>
+                                <select 
+                                    value={targetClientId}
+                                    onChange={(e) => setTargetClientId(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-200/80 rounded-2xl py-3 px-4 text-xs font-bold outline-none focus:border-black focus:bg-white text-slate-800 transition-all"
+                                >
+                                    {clients.map(client => (
+                                        <option key={client.id} value={client.id}>{client.name} ({client.website})</option>
+                                    ))}
+                                </select>
+                            </div>
+
                             <div className="space-y-1.5">
                                 <label className="text-[10px] font-black text-slate-600">الكلمة المفتاحية</label>
                                 <input 
@@ -245,6 +352,17 @@ export function KeywordsDatabase({
                                     placeholder="مثال: حبوب قهوة كولومبية"
                                     value={newKeywordText}
                                     onChange={(e) => setNewKeywordText(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-200/80 rounded-2xl py-3 px-4 text-xs font-bold outline-none focus:border-black focus:bg-white text-slate-800 transition-all"
+                                />
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-black text-slate-600">نية البحث (Intent - اختياري)</label>
+                                <input 
+                                    type="text" 
+                                    placeholder="مثال: Informational أو Commercial"
+                                    value={newKeywordIntent}
+                                    onChange={(e) => setNewKeywordIntent(e.target.value)}
                                     className="w-full bg-slate-50 border border-slate-200/80 rounded-2xl py-3 px-4 text-xs font-bold outline-none focus:border-black focus:bg-white text-slate-800 transition-all"
                                 />
                             </div>
@@ -271,6 +389,30 @@ export function KeywordsDatabase({
                                         value={newKeywordVolume}
                                         onChange={(e) => setNewKeywordVolume(Number(e.target.value))}
                                         className="w-full bg-slate-50 border border-slate-200/80 rounded-2xl py-3 px-4 text-xs font-bold outline-none focus:border-black focus:bg-white text-slate-800 transition-all font-mono"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-black text-slate-600">سعر النقرة CPC ($ - اختياري)</label>
+                                    <input 
+                                        type="number" 
+                                        step="0.01"
+                                        min="0"
+                                        value={newKeywordCPC}
+                                        onChange={(e) => setNewKeywordCPC(Number(e.target.value))}
+                                        className="w-full bg-slate-50 border border-slate-200/80 rounded-2xl py-3 px-4 text-xs font-bold outline-none focus:border-black focus:bg-white text-slate-800 transition-all font-mono"
+                                    />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-black text-slate-600">ميزات البحث SF (اختياري)</label>
+                                    <input 
+                                        type="text" 
+                                        placeholder="مثال: Featured Snippet, Images"
+                                        value={newKeywordSF}
+                                        onChange={(e) => setNewKeywordSF(e.target.value)}
+                                        className="w-full bg-slate-50 border border-slate-200/80 rounded-2xl py-3 px-4 text-xs font-bold outline-none focus:border-black focus:bg-white text-slate-800 transition-all"
                                     />
                                 </div>
                             </div>
@@ -302,7 +444,7 @@ export function KeywordsDatabase({
                             <div className="flex items-center gap-3 pt-4">
                                 <button
                                     type="submit"
-                                    disabled={isSubmitting}
+                                    disabled={isSubmitting || !!successMessage}
                                     className="flex-1 py-3 px-6 rounded-2xl bg-black hover:bg-zinc-800 text-white font-bold text-xs transition-all shadow-sm disabled:bg-zinc-500"
                                 >
                                     {isSubmitting ? 'جاري الحفظ...' : 'تأكيد وإضافة الكلمة'}

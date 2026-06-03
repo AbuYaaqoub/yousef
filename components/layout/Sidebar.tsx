@@ -262,7 +262,7 @@ export function Sidebar() {
                                 : "text-zinc-500 hover:text-black hover:bg-zinc-50/50"
                         )}
                     >
-                        كلمات
+                        بيانات
                     </button>
                     <button
                         onClick={() => {

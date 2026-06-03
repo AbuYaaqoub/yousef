@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Users, Plus, ArrowLeftRight, Clock, Trash2, Globe } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -18,13 +18,35 @@ interface ClientKeyword {
     location: string;
     review_due_at: string;
     page_url?: string;
+    kd?: number;
+    volume?: number;
+    platform?: string;
+    source_site?: string;
+    intent?: string;
+    cpc?: number;
+    sf?: string;
 }
 
 interface ClientKeywordsProps {
     selectedClient: Client;
+    clients: Client[];
     clientKeywords: ClientKeyword[];
     usingFallback: boolean;
-    onAddClientKeyword: (keyword: string, location: string, status: 'used' | 'changed' | 'review', reviewDays: number, pageUrl?: string) => Promise<void>;
+    onAddClientKeyword: (
+        clientId: string,
+        keyword: string,
+        location: string,
+        status: 'used' | 'changed' | 'review',
+        reviewDays: number,
+        pageUrl?: string,
+        kd?: number,
+        volume?: number,
+        platform?: string,
+        sourceSite?: string,
+        intent?: string,
+        cpc?: number,
+        sf?: string
+    ) => Promise<void>;
     onUpdateStatus: (id: string, currentStatus: 'used' | 'changed' | 'review') => Promise<void>;
     onResetTimer: (id: string, days: number) => Promise<void>;
     onDeleteClientKeyword: (id: string) => Promise<void>;
@@ -34,6 +56,7 @@ interface ClientKeywordsProps {
 
 export function ClientKeywords({
     selectedClient,
+    clients = [],
     clientKeywords,
     usingFallback,
     onAddClientKeyword,
@@ -44,12 +67,30 @@ export function ClientKeywords({
     isWideView = false
 }: ClientKeywordsProps) {
     const [showAddClientKeywordModal, setShowAddClientKeywordModal] = useState(false);
+    const [targetClientId, setTargetClientId] = useState(selectedClient.id);
+    const [successMessage, setSuccessMessage] = useState('');
+
     const [newClientKeywordText, setNewClientKeywordText] = useState('');
     const [newClientKeywordLocation, setNewClientKeywordLocation] = useState('الصفحة الرئيسية');
     const [newClientKeywordUrl, setNewClientKeywordUrl] = useState('');
     const [newClientKeywordStatus, setNewClientKeywordStatus] = useState<'used' | 'changed' | 'review'>('review');
     const [newClientKeywordDays, setNewClientKeywordDays] = useState<number>(7);
+    
+    // مقاييس الكلمة المفتاحية الجديدة الاختيارية
+    const [newClientKeywordKD, setNewClientKeywordKD] = useState<number>(30);
+    const [newClientKeywordVolume, setNewClientKeywordVolume] = useState<number>(1500);
+    const [newClientKeywordPlatform, setNewClientKeywordPlatform] = useState<string>('ahrefs');
+    const [newClientKeywordSourceSite, setNewClientKeywordSourceSite] = useState<string>('');
+    
+    // الحقول الإضافية لـ SEMrush
+    const [newClientKeywordIntent, setNewClientKeywordIntent] = useState('');
+    const [newClientKeywordCPC, setNewClientKeywordCPC] = useState<number>(0.0);
+    const [newClientKeywordSF, setNewClientKeywordSF] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    useEffect(() => {
+        setTargetClientId(selectedClient.id);
+    }, [selectedClient]);
 
     const handleAddSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -58,23 +99,71 @@ export function ClientKeywords({
         try {
             setIsSubmitting(true);
             await onAddClientKeyword(
+                targetClientId,
                 newClientKeywordText,
                 newClientKeywordLocation,
                 newClientKeywordStatus,
                 newClientKeywordDays,
-                newClientKeywordUrl
+                newClientKeywordUrl,
+                newClientKeywordKD,
+                newClientKeywordVolume,
+                newClientKeywordPlatform,
+                newClientKeywordSourceSite,
+                newClientKeywordIntent,
+                newClientKeywordCPC,
+                newClientKeywordSF
             );
-            setNewClientKeywordText('');
-            setNewClientKeywordLocation('الصفحة الرئيسية');
-            setNewClientKeywordUrl('');
-            setNewClientKeywordStatus('review');
-            setNewClientKeywordDays(7);
-            setShowAddClientKeywordModal(false);
+            
+            // إذا كان العميل المختار مختلفاً عن العميل النشط الحالي
+            if (targetClientId !== selectedClient.id) {
+                const targetClientName = clients.find(c => c.id === targetClientId)?.name || 'العميل المختار';
+                setSuccessMessage(`تمت إضافة الكلمة بنجاح للعميل (${targetClientName})! ✅`);
+                setTimeout(() => {
+                    setNewClientKeywordText('');
+                    setNewClientKeywordLocation('الصفحة الرئيسية');
+                    setNewClientKeywordUrl('');
+                    setNewClientKeywordStatus('review');
+                    setNewClientKeywordDays(7);
+                    setNewClientKeywordKD(30);
+                    setNewClientKeywordVolume(1500);
+                    setNewClientKeywordSourceSite('');
+                    setNewClientKeywordIntent('');
+                    setNewClientKeywordCPC(0.0);
+                    setNewClientKeywordSF('');
+                    setSuccessMessage('');
+                    setShowAddClientKeywordModal(false);
+                }, 1500);
+            } else {
+                setNewClientKeywordText('');
+                setNewClientKeywordLocation('الصفحة الرئيسية');
+                setNewClientKeywordUrl('');
+                setNewClientKeywordStatus('review');
+                setNewClientKeywordDays(7);
+                setNewClientKeywordKD(30);
+                setNewClientKeywordVolume(1500);
+                setNewClientKeywordSourceSite('');
+                setNewClientKeywordIntent('');
+                setNewClientKeywordCPC(0.0);
+                setNewClientKeywordSF('');
+                setShowAddClientKeywordModal(false);
+            }
         } catch (err) {
             console.error('Error adding client keyword:', err);
         } finally {
             setIsSubmitting(false);
         }
+    };
+
+    const getKDColorClass = (kd: number) => {
+        if (kd <= 30) return 'bg-emerald-50 text-emerald-700 border-emerald-100';
+        if (kd <= 60) return 'bg-amber-50 text-amber-700 border-amber-100';
+        return 'bg-rose-50 text-rose-700 border-rose-100';
+    };
+
+    const getKDText = (kd: number) => {
+        if (kd <= 30) return 'سهل';
+        if (kd <= 60) return 'متوسط';
+        return 'صعب';
     };
 
     const getDaysRemaining = (dueDate: string) => {
@@ -89,7 +178,7 @@ export function ClientKeywords({
             <div className="flex items-center justify-between flex-wrap gap-3">
                 <div>
                     <h3 className="text-lg font-black text-slate-900">الكلمات المفتاحية النشطة للعميل</h3>
-                    <p className="text-[10px] text-slate-400 font-bold mt-0.5">مراقبة مواقع تمركز الكلمات داخل موقع العميل ومتابعة مواقيت مراجعتها الدورية</p>
+                    <p className="text-[10px] text-slate-400 font-bold mt-0.5">مراقبة مواقع تمركز الكلمات داخل موقع العميل ومتابعة مواقيت مراجعتها الدورية بمقاييسها الكاملة</p>
                 </div>
                 <div className="flex items-center gap-2">
                     <button
@@ -115,17 +204,23 @@ export function ClientKeywords({
                 <table className={cn("w-full text-right border-collapse transition-all duration-300", isWideView ? "min-w-[1100px]" : "min-w-full")}>
                     <thead>
                         <tr className="bg-slate-50/80 border-b border-slate-100 text-slate-500 text-[10px] font-black uppercase tracking-wider">
-                            <th className={cn("p-4 transition-all duration-300", isWideView ? "w-[25%] min-w-[250px] border-l border-slate-100/80" : "")}>الكلمة المستهدفة</th>
-                            <th className={cn("p-4 text-center transition-all duration-300", isWideView ? "w-[15%] min-w-[120px] border-l border-slate-100/80" : "")}>الحالة</th>
-                            <th className={cn("p-4 transition-all duration-300", isWideView ? "w-[25%] min-w-[200px] border-l border-slate-100/80" : "")}>مكان التواجد بالموقع</th>
-                            <th className={cn("p-4 text-center transition-all duration-300", isWideView ? "w-[25%] min-w-[200px] border-l border-slate-100/80" : "")}>مؤقت المراجعة القادم</th>
-                            <th className={cn("p-4 text-center transition-all duration-300", isWideView ? "w-[10%] min-w-[80px]" : "")}>الإجراءات</th>
+                            <th className={cn("p-4 transition-all duration-300", isWideView ? "w-[18%] min-w-[180px] border-l border-slate-100/80" : "")}>الكلمة المستهدفة</th>
+                            <th className={cn("p-4 text-center transition-all duration-300", isWideView ? "w-[8%] min-w-[80px] border-l border-slate-100/80" : "")}>نية البحث</th>
+                            <th className={cn("p-4 text-center transition-all duration-300", isWideView ? "w-[10%] min-w-[90px] border-l border-slate-100/80" : "")}>الصعوبة KD</th>
+                            <th className={cn("p-4 text-center transition-all duration-300", isWideView ? "w-[12%] min-w-[110px] border-l border-slate-100/80" : "")}>حجم البحث</th>
+                            <th className={cn("p-4 text-center transition-all duration-300", isWideView ? "w-[10%] min-w-[90px] border-l border-slate-100/80" : "")}>CPC (نقرة)</th>
+                            <th className={cn("p-4 text-center transition-all duration-300", isWideView ? "w-[12%] min-w-[110px] border-l border-slate-100/80" : "")}>ميزات البحث SF</th>
+                            <th className={cn("p-4 text-center transition-all duration-300", isWideView ? "w-[10%] min-w-[90px] border-l border-slate-100/80" : "")}>المنصة</th>
+                            <th className={cn("p-4 text-center transition-all duration-300", isWideView ? "w-[10%] min-w-[95px] border-l border-slate-100/80" : "")}>الحالة</th>
+                            <th className={cn("p-4 transition-all duration-300", isWideView ? "w-[15%] min-w-[150px] border-l border-slate-100/80" : "")}>مكان التواجد بالموقع</th>
+                            <th className={cn("p-4 text-center transition-all duration-300", isWideView ? "w-[15%] min-w-[150px] border-l border-slate-100/80" : "")}>مؤقت المراجعة القادم</th>
+                            <th className={cn("p-4 text-center transition-all duration-300", isWideView ? "w-[6%] min-w-[60px]" : "")}>الإجراءات</th>
                         </tr>
                     </thead>
                     <tbody className="text-xs font-bold text-slate-700 divide-y divide-slate-100">
                         {clientKeywords.length === 0 ? (
                             <tr>
-                                <td colSpan={5} className="p-12 text-center text-slate-400">
+                                <td colSpan={11} className="p-12 text-center text-slate-400">
                                     <Users className="mx-auto mb-3 text-slate-300" size={24} />
                                     <span>لا توجد كلمات نشطة مستهدفة لهذا العميل حالياً</span>
                                 </td>
@@ -136,6 +231,74 @@ export function ClientKeywords({
                                 return (
                                     <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
                                         <td className={cn("p-4 font-black text-slate-900 transition-all duration-300", isWideView && "border-l border-slate-100/50")}>{item.keyword}</td>
+                                        
+                                        {/* نية البحث */}
+                                        <td className={cn("p-4 text-center transition-all duration-300", isWideView && "border-l border-slate-100/50")}>
+                                            {item.intent ? (
+                                                <span className={cn(
+                                                    "px-2 py-0.5 rounded-md text-[9px] font-black uppercase border",
+                                                    item.intent.toLowerCase().includes('info') ? 'bg-blue-50 border-blue-100 text-blue-700' :
+                                                    item.intent.toLowerCase().includes('comm') ? 'bg-purple-50 border-purple-100 text-purple-700' :
+                                                    item.intent.toLowerCase().includes('trans') ? 'bg-emerald-50 border-emerald-100 text-emerald-700' :
+                                                    'bg-slate-50 border-slate-200 text-slate-600'
+                                                )}>
+                                                    {item.intent}
+                                                </span>
+                                            ) : (
+                                                <span className="text-slate-300 text-[10px] font-bold">-</span>
+                                            )}
+                                        </td>
+
+                                        {/* الصعوبة KD */}
+                                        <td className={cn("p-4 text-center transition-all duration-300", isWideView && "border-l border-slate-100/50")}>
+                                            {item.kd !== undefined && item.kd > 0 ? (
+                                                <span className={cn("px-2.5 py-1 rounded-full border text-[10px] font-black inline-block min-w-[55px]", getKDColorClass(item.kd))}>
+                                                    {item.kd}% ({getKDText(item.kd)})
+                                                </span>
+                                            ) : (
+                                                <span className="text-slate-300 text-[10px] font-bold">-</span>
+                                            )}
+                                        </td>
+
+                                        {/* حجم البحث الشهري */}
+                                        <td className={cn("p-4 text-center font-mono transition-all duration-300", isWideView && "border-l border-slate-100/50")}>
+                                            {item.volume !== undefined && item.volume > 0 ? (
+                                                <span>{item.volume.toLocaleString('ar-EG')} عملية</span>
+                                            ) : (
+                                                <span className="text-slate-300 text-[10px] font-bold">-</span>
+                                            )}
+                                        </td>
+
+                                        {/* سعر النقرة CPC */}
+                                        <td className={cn("p-4 text-center font-mono text-slate-600 transition-all duration-300", isWideView && "border-l border-slate-100/50")}>
+                                            {item.cpc !== undefined && item.cpc > 0 ? (
+                                                <span className="text-zinc-700">${item.cpc.toFixed(2)}</span>
+                                            ) : (
+                                                <span className="text-slate-300 text-[10px] font-bold">-</span>
+                                            )}
+                                        </td>
+
+                                        {/* ميزات نتائج البحث SF */}
+                                        <td className={cn("p-4 text-center text-slate-500 font-medium truncate max-w-[120px] transition-all duration-300", isWideView && "border-l border-slate-100/50")} title={item.sf}>
+                                            {item.sf || <span className="text-slate-300 text-[10px] font-bold">-</span>}
+                                        </td>
+
+                                        {/* المنصة المصدر */}
+                                        <td className={cn("p-4 text-center transition-all duration-300", isWideView && "border-l border-slate-100/50")}>
+                                            {item.platform ? (
+                                                <span className={cn(
+                                                    "px-2.5 py-1 rounded-full text-[9px] font-black uppercase border",
+                                                    item.platform === 'ahrefs' ? 'bg-zinc-900 text-white border-zinc-950' : 
+                                                    item.platform === 'semrush' ? 'bg-zinc-50 border-zinc-200 text-slate-900' : 
+                                                    'bg-white border-zinc-300 text-zinc-600'
+                                                )}>
+                                                    {item.platform === 'moz' ? 'Moz (دز)' : item.platform}
+                                                </span>
+                                            ) : (
+                                                <span className="text-slate-300 text-[10px] font-bold">-</span>
+                                            )}
+                                        </td>
+
                                         <td className={cn("p-4 text-center transition-all duration-300", isWideView && "border-l border-slate-100/50")}>
                                             <button
                                                 onClick={() => onUpdateStatus(item.id, item.status)}
@@ -213,13 +376,32 @@ export function ClientKeywords({
             {/* مودال منبثق لإضافة كلمة مستهدفة للعميل */}
             {showAddClientKeywordModal && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/65 p-4 animate-in duration-250">
-                    <div className="bg-white border border-slate-100 rounded-[32px] w-full max-w-md p-8 shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
+                    <div className="bg-white border border-slate-100 rounded-[32px] w-full max-w-md p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                         <div className="mb-6">
                             <h3 className="text-xl font-black text-slate-900">إضافة كلمة مستهدفة للعميل</h3>
-                            <p className="text-[10px] text-slate-400 font-bold mt-1">تحديد كلمة جديدة مستهدفة بالفعل في موقع العميل لمتابعة مؤقت مراجعتها</p>
+                            <p className="text-[10px] text-slate-400 font-bold mt-1">تحديد كلمة جديدة مستهدفة بالفعل في موقع العميل لمتابعة مؤقت مراجعتها ومقاييسها</p>
                         </div>
 
+                        {successMessage && (
+                            <div className="p-4 mb-4 text-xs font-black text-emerald-800 bg-emerald-50 border border-emerald-100 rounded-2xl animate-pulse text-center">
+                                {successMessage}
+                            </div>
+                        )}
+
                         <form onSubmit={handleAddSubmit} className="space-y-4">
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-black text-slate-600">العميل المستهدف</label>
+                                <select 
+                                    value={targetClientId}
+                                    onChange={(e) => setTargetClientId(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-200/80 rounded-2xl py-3 px-4 text-xs font-bold outline-none focus:border-black focus:bg-white text-slate-800 transition-all"
+                                >
+                                    {clients.map(client => (
+                                        <option key={client.id} value={client.id}>{client.name} ({client.website})</option>
+                                    ))}
+                                </select>
+                            </div>
+
                             <div className="space-y-1.5">
                                 <label className="text-[10px] font-black text-slate-600">الكلمة المستهدفة</label>
                                 <input 
@@ -228,6 +410,17 @@ export function ClientKeywords({
                                     placeholder="مثال: قهوة دبل اسبريسو"
                                     value={newClientKeywordText}
                                     onChange={(e) => setNewClientKeywordText(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-200/80 rounded-2xl py-3 px-4 text-xs font-bold outline-none focus:border-black focus:bg-white text-slate-800 transition-all"
+                                />
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-black text-slate-600">نية البحث (Intent - اختياري)</label>
+                                <input 
+                                    type="text" 
+                                    placeholder="مثال: Informational أو Commercial"
+                                    value={newClientKeywordIntent}
+                                    onChange={(e) => setNewClientKeywordIntent(e.target.value)}
                                     className="w-full bg-slate-50 border border-slate-200/80 rounded-2xl py-3 px-4 text-xs font-bold outline-none focus:border-black focus:bg-white text-slate-800 transition-all"
                                 />
                             </div>
@@ -254,6 +447,80 @@ export function ClientKeywords({
                                     className="w-full bg-slate-50 border border-slate-200/80 rounded-2xl py-3 px-4 text-xs font-bold outline-none focus:border-black focus:bg-white text-slate-800 transition-all text-left"
                                     dir="ltr"
                                 />
+                            </div>
+
+                            {/* المقاييس الإحصائية الإضافية */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-black text-slate-600">درجة الصعوبة KD (اختياري)</label>
+                                    <input 
+                                        type="number" 
+                                        min="0"
+                                        max="100"
+                                        value={newClientKeywordKD}
+                                        onChange={(e) => setNewClientKeywordKD(Number(e.target.value))}
+                                        className="w-full bg-slate-50 border border-slate-200/80 rounded-2xl py-3 px-4 text-xs font-bold outline-none focus:border-black focus:bg-white text-slate-800 transition-all font-mono"
+                                    />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-black text-slate-600">حجم البحث (اختياري)</label>
+                                    <input 
+                                        type="number" 
+                                        min="0"
+                                        value={newClientKeywordVolume}
+                                        onChange={(e) => setNewClientKeywordVolume(Number(e.target.value))}
+                                        className="w-full bg-slate-50 border border-slate-200/80 rounded-2xl py-3 px-4 text-xs font-bold outline-none focus:border-black focus:bg-white text-slate-800 transition-all font-mono"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-black text-slate-600">سعر النقرة CPC ($ - اختياري)</label>
+                                    <input 
+                                        type="number" 
+                                        step="0.01"
+                                        min="0"
+                                        value={newClientKeywordCPC}
+                                        onChange={(e) => setNewClientKeywordCPC(Number(e.target.value))}
+                                        className="w-full bg-slate-50 border border-slate-200/80 rounded-2xl py-3 px-4 text-xs font-bold outline-none focus:border-black focus:bg-white text-slate-800 transition-all font-mono"
+                                    />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-black text-slate-600">ميزات البحث SF (اختياري)</label>
+                                    <input 
+                                        type="text" 
+                                        placeholder="مثال: Featured Snippet, Images"
+                                        value={newClientKeywordSF}
+                                        onChange={(e) => setNewClientKeywordSF(e.target.value)}
+                                        className="w-full bg-slate-50 border border-slate-200/80 rounded-2xl py-3 px-4 text-xs font-bold outline-none focus:border-black focus:bg-white text-slate-800 transition-all"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-black text-slate-600">المنصة المصدر</label>
+                                    <select 
+                                        value={newClientKeywordPlatform}
+                                        onChange={(e) => setNewClientKeywordPlatform(e.target.value)}
+                                        className="w-full bg-slate-50 border border-slate-200/80 rounded-2xl py-3 px-4 text-xs font-bold outline-none focus:border-black focus:bg-white text-slate-800 transition-all"
+                                    >
+                                        <option value="ahrefs">Ahrefs (أشرف)</option>
+                                        <option value="semrush">Semrush (سمرش)</option>
+                                        <option value="moz">Moz (دز)</option>
+                                    </select>
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-black text-slate-600">موقع المصدر (اختياري)</label>
+                                    <input 
+                                        type="text" 
+                                        placeholder="مثال: competitor.com"
+                                        value={newClientKeywordSourceSite}
+                                        onChange={(e) => setNewClientKeywordSourceSite(e.target.value)}
+                                        className="w-full bg-slate-50 border border-slate-200/80 rounded-2xl py-3 px-4 text-xs font-bold outline-none focus:border-black focus:bg-white text-slate-800 transition-all"
+                                    />
+                                </div>
                             </div>
 
                             <div className="space-y-1.5">
@@ -288,7 +555,7 @@ export function ClientKeywords({
                             <div className="flex items-center gap-3 pt-4">
                                 <button
                                     type="submit"
-                                    disabled={isSubmitting}
+                                    disabled={isSubmitting || !!successMessage}
                                     className="flex-1 py-3 px-6 rounded-2xl bg-black hover:bg-zinc-800 text-white font-bold text-xs transition-all shadow-sm disabled:bg-zinc-500"
                                 >
                                     {isSubmitting ? 'جاري الإضافة...' : 'تأكيد وإضافة الكلمة'}

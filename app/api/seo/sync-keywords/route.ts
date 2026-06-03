@@ -71,17 +71,40 @@ export async function POST(req: NextRequest) {
             kd: parseInt(kwItem.kd) || 0,
             volume: parseInt(kwItem.volume) || 0,
             platform: kwItem.platform || 'semrush',
-            source_site: kwItem.source_site || ''
+            source_site: kwItem.source_site || '',
+            intent: kwItem.intent || '',
+            cpc: parseFloat(kwItem.cpc) || 0.0,
+            sf: kwItem.sf || ''
         }));
 
         // 4. الإدراج في قاعدة البيانات
-        const { error: insertError } = await supabase
+        let { error: insertError } = await supabase
             .from('seo_keywords_database')
             .insert(itemsToInsert);
 
         if (insertError) {
-            console.error('Error inserting synced keywords:', insertError);
-            return NextResponse.json({ success: false, error: insertError.message }, { status: 500 });
+            // تراجع آمن في حال عدم وجود الأعمدة الجديدة بقاعدة البيانات السحابية (خطأ 42703)
+            if (insertError.code === '42703') {
+                const fallbackItems = itemsToInsert.map(item => {
+                    const fallbackItem = { ...item };
+                    delete (fallbackItem as any).intent;
+                    delete (fallbackItem as any).cpc;
+                    delete (fallbackItem as any).sf;
+                    return fallbackItem;
+                });
+                
+                const { error: retryError } = await supabase
+                    .from('seo_keywords_database')
+                    .insert(fallbackItems);
+                
+                if (retryError) {
+                    console.error('Error inserting synced keywords on fallback:', retryError);
+                    return NextResponse.json({ success: false, error: retryError.message }, { status: 500 });
+                }
+            } else {
+                console.error('Error inserting synced keywords:', insertError);
+                return NextResponse.json({ success: false, error: insertError.message }, { status: 500 });
+            }
         }
 
         return NextResponse.json({
