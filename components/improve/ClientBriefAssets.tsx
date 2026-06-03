@@ -26,7 +26,8 @@ import {
     Target,
     CalendarDays,
     Search,
-    Store
+    Store,
+    Printer
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
@@ -68,6 +69,7 @@ interface ClientBriefData {
     results_timeframe: string;
     final_decision_maker: string;
     religious_political_restrictions: string;
+    summary?: string;
     colors: ColorAsset[];
     fonts: {
         primary: string;
@@ -99,6 +101,7 @@ const DEFAULT_BRIEF_DATA = (): ClientBriefData => ({
     results_timeframe: 'الوقت المتوقع للبدء في رؤية النتائج الملموسة للحملة (المتوقع عادة من ٣ إلى ٦ أشهر لضمان الصبر والعمل السليم)...',
     final_decision_maker: 'من هو صاحب الكلمة النهائية والمعتمد لاتخاذ القرارات مع م/ أحمد خطاب لتفادي تشتت القرار؟...',
     religious_political_restrictions: 'هل يوجد أي تقييد ديني أو سياسي أو أخلاقي يجب مراعاته وتجنبه نهائياً بالرسائل التسويقية والمحتوى؟...',
+    summary: '',
     colors: [
         { name: 'اللون الأساسي للعلامة', hex: '#0F172A' },
         { name: 'اللون الثانوي التفاعلي', hex: '#D97706' },
@@ -149,6 +152,8 @@ export function ClientBriefAssets({ selectedClient, usingFallback }: ClientBrief
     const [primaryFont, setPrimaryFont] = useState('Cairo');
     const [secondaryFont, setSecondaryFont] = useState('Inter');
     const [successSaveMsg, setSuccessSaveMsg] = useState('');
+    const [isEditingSummary, setIsEditingSummary] = useState(false);
+    const [editSummary, setEditSummary] = useState('');
 
     // --- حالات المتاجر المكتشفة (Leads) للمنافسين ---
     const [discoveredStores, setDiscoveredStores] = useState<{ id: string; store_name: string; store_url: string; website?: string }[]>([]);
@@ -288,6 +293,7 @@ export function ClientBriefAssets({ selectedClient, usingFallback }: ClientBrief
         setEditReligiousPoliticalRestrictions(data.religious_political_restrictions || '');
         setPrimaryFont(data.fonts?.primary || 'Cairo');
         setSecondaryFont(data.fonts?.secondary || 'Inter');
+        setEditSummary(data.summary || '');
     };
 
     // حفظ التغييرات بقاعدة الكاش المحلي وقاعدة البيانات الفعالة
@@ -352,6 +358,15 @@ export function ClientBriefAssets({ selectedClient, usingFallback }: ClientBrief
         };
         await saveBriefData(updated);
         setIsEditingBrief(false);
+    };
+
+    const handleSaveSummary = async () => {
+        const updated: ClientBriefData = {
+            ...briefData,
+            summary: editSummary
+        };
+        await saveBriefData(updated);
+        setIsEditingSummary(false);
     };
 
     const handleSaveFonts = async () => {
@@ -434,6 +449,383 @@ export function ClientBriefAssets({ selectedClient, usingFallback }: ClientBrief
         setTimeout(() => setCopiedColorIndex(null), 1500);
     };
 
+    const handleExportPDF = () => {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            alert('يرجى السماح بفتح النوافذ المنبثقة لتتمكن من تحميل ملف الـ PDF');
+            return;
+        }
+
+        // تحضير ألوان الهوية
+        const colorsHtml = briefData.colors && briefData.colors.length > 0
+            ? briefData.colors.map(color => `
+                <div style="border: 1px solid #e2e8f0; padding: 10px; border-radius: 12px; display: flex; align-items: center; gap: 10px; background: #ffffff;">
+                    <div style="width: 28px; height: 28px; border-radius: 6px; border: 1px solid #cbd5e1; background-color: ${color.hex}; flex-shrink: 0;"></div>
+                    <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        <div style="font-size: 11px; font-weight: bold; color: #1e293b;">${color.name}</div>
+                        <div style="font-size: 9px; font-family: monospace; color: #64748b; text-transform: uppercase;">${color.hex}</div>
+                    </div>
+                </div>
+            `).join('')
+            : '<p style="font-size: 11px; color: #94a3b8; grid-column: span 3; text-align: center;">لم يتم تعيين أي ألوان للهوية البصرية بعد</p>';
+
+        // تحضير الروابط والأصول المرجعية
+        const linksHtml = briefData.links && briefData.links.length > 0 
+            ? briefData.links.map(link => {
+                let badge = 'رابط مرجعي';
+                if (link.type === 'logo') badge = 'شعار العميل';
+                if (link.type === 'guideline') badge = 'دليل الهوية';
+                if (link.type === 'content_plan') badge = 'خطة السيو والمحتوى';
+                if (link.type === 'drive') badge = 'مجلد Drive المشترك';
+
+                return `
+                    <div style="border: 1px solid #e2e8f0; padding: 10px 15px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; background: #ffffff; margin-bottom: 8px;">
+                        <div>
+                            <span style="font-size: 11px; font-weight: bold; color: #1e293b; display: block; margin-bottom: 2px;">${link.name}</span>
+                            <span style="font-size: 9px; background: #f1f5f9; color: #475569; padding: 2px 6px; border-radius: 4px; font-weight: bold;">${badge}</span>
+                        </div>
+                        <a href="${link.url}" target="_blank" style="font-size: 10px; color: #2563eb; text-decoration: underline; font-family: monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 250px;">
+                            ${link.url.replace(/^https?:\/\//, '')}
+                        </a>
+                    </div>
+                `;
+            }).join('')
+            : '<p style="font-size: 11px; color: #94a3b8; text-align: center; width: 100%;">لا توجد ملفات مرجعية مسجلة حالياً</p>';
+
+        // تحضير الملخص التنفيذي للـ PDF
+        const summaryHtml = briefData.summary
+            ? `
+                <div class="section-container">
+                    <h3 class="section-title">الملخص التنفيذي للبريف والاتفاق</h3>
+                    <div style="border: 1px solid #e2e8f0; padding: 12px 15px; border-radius: 12px; background: #f8fafc; font-size: 10px; text-align: justify; white-space: pre-line; color: #334155; line-height: 1.6; page-break-inside: avoid;">
+                        ${briefData.summary.replace(/\n/g, '<br/>')}
+                    </div>
+                </div>
+            `
+            : '';
+
+        // محتويات الأسئلة الـ 17
+        const sections = [
+            {
+                title: "1. البزنس ونقاط القوة التجارية",
+                questions: [
+                    { q: "من هي الشركة وتاريخ تأسيسها وعمرها وخبرتها في السوق؟", a: briefData.company_intro },
+                    { q: "ما هي الخدمات والمنتجات التي تقدمها الشركة لعملائها بالتفصيل؟", a: briefData.services_provided },
+                    { q: "خطوات تقديم الخدمات من لحظة استلام الطلب وحتى تسليمه النهائي؟", a: briefData.service_steps },
+                    { q: "ما هي نقاط قوة الشركة البشرية (الخبرات) والمادية (البنية التحتية)؟", a: briefData.company_strengths },
+                    { q: "ما هي نقاط البيع والميزات التنافسية الحالية للشركة التي تميزها؟", a: briefData.selling_points }
+                ]
+            },
+            {
+                title: "2. المستهدفين والتحديات التسويقية",
+                questions: [
+                    { q: "ما هي المشكلات أو العقبات التسويقية الحالية التي تواجه المبيعات؟", a: briefData.marketing_problems },
+                    { q: "من هو عميلك المثالي المستهدف (Audience Persona) واهتماماته وسلوكه؟", a: briefData.target_client_detail },
+                    { q: "من هو المنافس لك في محركات البحث وفي أرض الواقع؟", a: briefData.competitors_online_offline },
+                    { q: "هل يوجد أي تقييد ديني أو سياسي أو أخلاقي يجب تجنبه بالرسائل والمحتوى؟", a: briefData.religious_political_restrictions }
+                ]
+            },
+            {
+                title: "3. الحملة والرسائل الإعلانية الجوهرية",
+                questions: [
+                    { q: "ما الهدف الأساسي والتجاري الذي ترغبون في تحقيقه من التعاقد مع م/ أحمد خطاب؟", a: briefData.contract_goal_khattab },
+                    { q: "لماذا تقرر البدء في هذه الحملة حالياً؟ (إطلاق جديد، زيادة مبيعات، منافسة...)", a: briefData.campaign_reason },
+                    { q: "ما هي الرسالة والتوجه الجوهري الذي ترغبون في إرساله وتثبيته في ذهن المستخدم؟", a: briefData.campaign_message },
+                    { q: "عند دخول المتجر: ما الذي يجب أن (يفكر فيه) العميل، وبماذا (يشعر)، وما (يفعله) مباشرة؟", a: briefData.audience_think_feel_do }
+                ]
+            },
+            {
+                title: "4. الإدارة والجدول الزمني والتوقعات",
+                questions: [
+                    { q: "ما هي توقعاتكم وأرقامكم المستهدفة للحملة (زيادة المبيعات، تصدر الكلمات)؟", a: briefData.campaign_expectations },
+                    { q: "الوقت المتوقع للبدء في رؤية النتائج الملموسة للحملة؟", a: briefData.results_timeframe },
+                    { q: "من هو صاحب الكلمة النهائية والمعتمد لاتخاذ القرارات لتفادي تشتت القرار؟", a: briefData.final_decision_maker },
+                    { q: "مواعيد ووتيرة الاجتماعات الدورية وتواريخ تسليم التقارير الفنية؟", a: briefData.meetings_reports_schedule }
+                ]
+            }
+        ];
+
+        const sectionsHtml = sections.map(sec => `
+            <div class="section-container">
+                <h3 class="section-title">${sec.title}</h3>
+                ${sec.questions.map((q, idx) => `
+                    <div class="question-block">
+                        <div class="question-label">${idx + 1}. ${q.q}</div>
+                        <div class="answer-text">${q.a ? q.a.replace(/\n/g, '<br/>') : '---'}</div>
+                    </div>
+                `).join('')}
+            </div>
+        `).join('');
+
+        const formattedDate = new Date().toLocaleDateString('ar-SA', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+
+        const htmlContent = `
+            <!DOCTYPE html>
+            <html dir="rtl" lang="ar">
+            <head>
+                <meta charset="UTF-8">
+                <title>وثيقة بريف العميل - ${selectedClient.name}</title>
+                <style>
+                    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap');
+                    
+                    @page {
+                        size: A4;
+                        margin: 15mm 15mm 20mm 15mm;
+                    }
+                    
+                    * {
+                        box-sizing: border-box;
+                    }
+                    
+                    body {
+                        font-family: 'Cairo', sans-serif;
+                        color: #0f172a;
+                        background: #ffffff;
+                        line-height: 1.6;
+                        margin: 0;
+                        padding: 0;
+                        font-size: 11px;
+                    }
+                    
+                    .header-container {
+                        border-bottom: 2px solid #0f172a;
+                        padding-bottom: 12px;
+                        margin-bottom: 20px;
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: flex-end;
+                    }
+                    
+                    .header-title-section h1 {
+                        font-size: 18px;
+                        font-weight: 900;
+                        margin: 0 0 4px 0;
+                        color: #0f172a;
+                    }
+                    
+                    .header-title-section p {
+                        font-size: 9px;
+                        color: #64748b;
+                        margin: 0;
+                        font-weight: bold;
+                    }
+                    
+                    .header-info-section {
+                        text-align: left;
+                        font-size: 9px;
+                        color: #475569;
+                    }
+                    
+                    .header-info-section div {
+                        margin-bottom: 2px;
+                    }
+                    
+                    .section-container {
+                        margin-bottom: 22px;
+                        page-break-inside: avoid;
+                    }
+                    
+                    .section-title {
+                        font-size: 12px;
+                        font-weight: 900;
+                        background: #0f172a;
+                        color: #ffffff;
+                        padding: 5px 10px;
+                        border-radius: 5px;
+                        margin: 0 0 12px 0;
+                    }
+                    
+                    .visual-identity-grid {
+                        display: grid;
+                        grid-template-columns: 2fr 1fr;
+                        gap: 15px;
+                        margin-bottom: 15px;
+                    }
+                    
+                    .colors-list-grid {
+                        display: grid;
+                        grid-template-columns: repeat(3, 1fr);
+                        gap: 10px;
+                    }
+                    
+                    .question-block {
+                        margin-bottom: 12px;
+                        padding: 0 4px;
+                        page-break-inside: avoid;
+                    }
+                    
+                    .question-label {
+                        font-size: 10px;
+                        font-weight: bold;
+                        color: #0f172a;
+                        border-bottom: 1px solid #e2e8f0;
+                        padding-bottom: 3px;
+                        margin-bottom: 5px;
+                    }
+                    
+                    .answer-text {
+                        font-size: 10px;
+                        color: #334155;
+                        text-align: justify;
+                        white-space: pre-line;
+                    }
+                    
+                    .signatures-container {
+                        margin-top: 40px;
+                        display: flex;
+                        justify-content: space-between;
+                        page-break-inside: avoid;
+                    }
+                    
+                    .signature-box {
+                        text-align: center;
+                        width: 45%;
+                        border-top: 1px dashed #94a3b8;
+                        padding-top: 10px;
+                    }
+                    
+                    .signature-box strong {
+                        font-size: 10.5px;
+                        color: #0f172a;
+                        display: block;
+                        margin-bottom: 20px;
+                    }
+                    
+                    .signature-field {
+                        font-size: 9px;
+                        color: #64748b;
+                        margin-bottom: 4px;
+                        text-align: right;
+                        padding-right: 15%;
+                    }
+                    
+                    .footer-banner {
+                        position: fixed;
+                        bottom: 0;
+                        left: 0;
+                        right: 0;
+                        text-align: center;
+                        font-size: 8px;
+                        color: #94a3b8;
+                        border-top: 1px solid #f1f5f9;
+                        padding-top: 4px;
+                        font-weight: bold;
+                    }
+                    
+                    @media print {
+                        body {
+                            background: white;
+                        }
+                        .no-print {
+                            display: none;
+                        }
+                        .visual-identity-grid {
+                            display: flex;
+                            gap: 15px;
+                        }
+                        .visual-identity-grid > div:first-child {
+                            flex: 2;
+                        }
+                        .visual-identity-grid > div:last-child {
+                            flex: 1;
+                        }
+                        .colors-list-grid {
+                            display: flex;
+                            gap: 10px;
+                        }
+                        .colors-list-grid > div {
+                            flex: 1;
+                        }
+                    }
+                </style>
+            </head>
+            <body>
+                <!-- رأس الصفحة -->
+                <div class="header-container">
+                    <div class="header-title-section">
+                        <h1>وثيقة بريف العميل وبنود التعاقد</h1>
+                        <p>استمارة التعاقد المعتمدة مع المستشار م/ أحمد خطاب</p>
+                    </div>
+                    <div class="header-info-section">
+                        <div><strong>العميل:</strong> ${selectedClient.name}</div>
+                        <div><strong>الموقع الإلكتروني:</strong> ${selectedClient.website}</div>
+                        <div><strong>تاريخ التصدير:</strong> ${formattedDate}</div>
+                    </div>
+                </div>
+
+                <!-- الهوية البصرية والخطوط -->
+                <div class="section-container">
+                    <h3 class="section-title">الهوية البصرية والخطوط المعتمدة</h3>
+                    <div class="visual-identity-grid">
+                        <div class="colors-list-grid">
+                            ${colorsHtml}
+                        </div>
+                        <div style="border: 1px solid #e2e8f0; padding: 10px; border-radius: 12px; background: #f8fafc; display: flex; flex-direction: column; justify-content: center; gap: 4px;">
+                            <div style="font-size: 9px; font-weight: bold; color: #64748b;">الخطوط المعتمدة:</div>
+                            <div style="font-size: 10.5px;"><strong>الخط الأساسي:</strong> ${briefData.fonts?.primary || 'Cairo'}</div>
+                            <div style="font-size: 10.5px;"><strong>الخط الفرعي:</strong> ${briefData.fonts?.secondary || 'Inter'}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- الملفات والأصول المرجعية -->
+                <div class="section-container">
+                    <h3 class="section-title">الأصول والملفات المرجعية المشتركة</h3>
+                    <div>
+                        ${linksHtml}
+                    </div>
+                </div>
+
+                <!-- ملخص البريف والاتفاق -->
+                ${summaryHtml}
+
+                <div style="page-break-before: always;"></div>
+
+                <!-- الأسئلة الـ 17 للتعاقد -->
+                ${sectionsHtml}
+
+                <!-- توقيعات الاعتماد -->
+                <div class="signatures-container">
+                    <div class="signature-box">
+                        <strong>اعتماد العميل / ممثل الشركة</strong>
+                        <div class="signature-field">الاسم المعتمد: ___________________</div>
+                        <div class="signature-field">التوقيع / الختم: ___________________</div>
+                        <div class="signature-field">التاريخ: ____ / ____ / ________ م</div>
+                    </div>
+                    <div class="signature-box">
+                        <strong>اعتماد المستشار م/ أحمد خطاب</strong>
+                        <div class="signature-field">التوقيع: _______________________</div>
+                        <div class="signature-field">التاريخ: ____ / ____ / ________ م</div>
+                    </div>
+                </div>
+
+                <!-- تذييل الصفحة -->
+                <div class="footer-banner">
+                    وثيقة معتمدة ومصدرة إلكترونياً عبر نظام SallaHunter Pro &copy; 2026
+                </div>
+
+                <script>
+                    window.onload = function() {
+                        window.print();
+                        // إغلاق النافذة المنبثقة تلقائياً بعد انتهاء الطباعة أو الإلغاء
+                        setTimeout(function() {
+                            window.close();
+                        }, 500);
+                    };
+                <\/script>
+            </body>
+            </html>
+        `;
+
+        printWindow.document.open();
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+    };
+
     const getLinkIcon = (type: string) => {
         switch (type) {
             case 'logo':
@@ -499,8 +891,11 @@ export function ClientBriefAssets({ selectedClient, usingFallback }: ClientBrief
                 </div>
             )}
 
-            {/* الجزء الأيمن: البريف المطور لأسئلة م/ أحمد خطاب الـ 17 */}
-            <div className="xl:col-span-8 bg-white border border-slate-200/80 rounded-[32px] overflow-hidden shadow-sm p-6 sm:p-8 space-y-6">
+            {/* الجزء الأيمن: البريف المطور لأسئلة م/ أحمد خطاب الـ 17 والملخص المضاف */}
+            <div className="xl:col-span-8 space-y-8">
+                
+                {/* استمارة الأسئلة الـ 17 */}
+                <div className="bg-white border border-slate-200/80 rounded-[32px] overflow-hidden shadow-sm p-6 sm:p-8 space-y-6">
                 
                 {/* الترويسة الفنية */}
                 <div className="flex items-center justify-between flex-wrap gap-4 border-b border-slate-100 pb-5">
@@ -536,13 +931,23 @@ export function ClientBriefAssets({ selectedClient, usingFallback }: ClientBrief
                                 </button>
                             </>
                         ) : (
-                            <button
-                                onClick={() => setIsEditingBrief(true)}
-                                className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl border border-zinc-200 text-zinc-700 hover:border-black hover:text-black hover:bg-zinc-50 text-xs font-black transition-all shadow-sm"
-                            >
-                                <Edit3 size={14} />
-                                <span>تعديل الأسئلة الـ 17</span>
-                            </button>
+                            <>
+                                <button
+                                    onClick={handleExportPDF}
+                                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl border border-zinc-200 bg-zinc-50 text-zinc-700 hover:border-black hover:text-black hover:bg-zinc-100 text-xs font-black transition-all shadow-sm"
+                                    title="تحميل البريف كملف PDF للطباعة"
+                                >
+                                    <Printer size={14} />
+                                    <span>تحميل PDF</span>
+                                </button>
+                                <button
+                                    onClick={() => setIsEditingBrief(true)}
+                                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl border border-zinc-200 text-zinc-700 hover:border-black hover:text-black hover:bg-zinc-50 text-xs font-black transition-all shadow-sm"
+                                >
+                                    <Edit3 size={14} />
+                                    <span>تعديل الأسئلة الـ 17</span>
+                                </button>
+                            </>
                         )}
                     </div>
                 </div>
@@ -967,7 +1372,87 @@ export function ClientBriefAssets({ selectedClient, usingFallback }: ClientBrief
                 </div>
             </div>
 
-            {/* الجزء الأيسر: لوحة ألوان الهوية، الخطوط، والروابط المشتركة (4 أعمدة ثنائية التوافق) */}
+            {/* كارت ملخص البريف والاتفاق */}
+            <div className="bg-white border border-slate-200/80 rounded-[32px] p-6 sm:p-8 shadow-sm space-y-5">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                    <div className="flex items-center gap-2">
+                        <div className="p-2 rounded-xl bg-black text-white">
+                            <BookOpen size={16} />
+                        </div>
+                        <div>
+                            <h4 className="text-sm font-black text-slate-900">ملخص البريف والاتفاق</h4>
+                            <p className="text-[10px] text-slate-400 font-bold mt-0.5">خلاصة سريعة ونقاط تركيز أساسية تم التوافق عليها مع العميل</p>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        {isEditingSummary ? (
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={handleSaveSummary}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-black text-white hover:bg-zinc-800 text-[10px] font-black transition-all shadow-sm"
+                                >
+                                    <Save size={12} />
+                                    <span>حفظ الملخص</span>
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setEditSummary(briefData.summary || '');
+                                        setIsEditingSummary(false);
+                                    }}
+                                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-zinc-200 text-zinc-500 hover:text-black hover:bg-zinc-50 text-[10px] font-black transition-all"
+                                >
+                                    <X size={12} />
+                                    <span>إلغاء</span>
+                                </button>
+                            </div>
+                        ) : (
+                            <button
+                                onClick={() => {
+                                    setEditSummary(briefData.summary || '');
+                                    setIsEditingSummary(true);
+                                }}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-zinc-200 text-zinc-700 hover:border-black hover:text-black hover:bg-zinc-50 text-[10px] font-black transition-all shadow-sm"
+                            >
+                                <Edit3 size={12} />
+                                <span>تعديل الملخص</span>
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                <div className="pt-1">
+                    {isEditingSummary ? (
+                        <textarea
+                            value={editSummary}
+                            onChange={(e) => setEditSummary(e.target.value)}
+                            rows={6}
+                            placeholder="اكتب هنا الملخص التنفيذي للمشروع وأهم التوصيات المتفق عليها..."
+                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs font-bold outline-none focus:border-black focus:bg-white transition-all text-slate-800 leading-relaxed"
+                        />
+                    ) : (
+                        briefData.summary ? (
+                            <p className="text-xs font-bold leading-relaxed text-slate-600 whitespace-pre-line text-justify bg-slate-50/40 p-4 border border-slate-100 rounded-2xl">{briefData.summary}</p>
+                        ) : (
+                            <div className="text-center py-6 border border-dashed border-slate-200 rounded-2xl bg-slate-50/20">
+                                <p className="text-[11px] font-bold text-slate-400">لم يتم كتابة ملخص تنفيذي للبريف بعد.</p>
+                                <button
+                                    onClick={() => {
+                                        setEditSummary('');
+                                        setIsEditingSummary(true);
+                                    }}
+                                    className="mt-2 text-[10px] font-black text-black underline hover:text-zinc-700"
+                                >
+                                    إضافة ملخص الآن ✍️
+                                </button>
+                            </div>
+                        )
+                    )}
+                </div>
+            </div>
+        </div>
+
+        {/* الجزء الأيسر: لوحة ألوان الهوية، الخطوط، والروابط المشتركة (4 أعمدة ثنائية التوافق) */}
             <div className="xl:col-span-4 space-y-8">
                 
                 {/* 1. كارت ألوان الهوية البصرية */}
