@@ -2,13 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { scrapeMahallyStores } from '@/lib/scraper/mahallyScraper';
 import { saveToMahallyExcel } from '@/lib/excel/mahallyExcel';
 import { clearCancel } from '@/lib/scraper/cancelSignal';
-import { supabase } from '@/lib/supabase';
+import { supabase, autoDetectCategory } from '@/lib/supabase';
 
 export async function POST(req: NextRequest) {
-    const { productName, limit } = await req.json();
+    const { productName, limit, category } = await req.json();
     if (!productName) return NextResponse.json({ error: 'Product name is required' }, { status: 400 });
 
     const maxResults = limit || 50;
+    
+    // محاولة تصنيف المتاجر تلقائياً بناءً على الكلمة المفتاحية في حال عدم اختيار تصنيف محدد
+    let searchCategory = category && category !== 'عام' ? category : 'عام';
+    if (searchCategory === 'عام') {
+        searchCategory = await autoDetectCategory(productName, 'عام');
+    }
 
     const jobId = 'mahally-scrape';
     clearCancel(jobId); // التأكد من أن الإشارة نظيفة قبل البدء
@@ -53,7 +59,7 @@ export async function POST(req: NextRequest) {
                         store_url: item.storeUrl,
                         sub_text: item.subText || '',
                         source: 'mahally',
-                        category: productName,
+                        category: searchCategory,
                         rating: '🟡 متوسط',
                         is_enriched: false
                     }));
@@ -68,12 +74,12 @@ export async function POST(req: NextRequest) {
                     if (upsertError) {
                         console.error('❌ Supabase Leads Upsert Error:', upsertError);
                     } else {
-                        console.log(`✅ Supabase Leads Updated: Upserted ${results.length} stores to [${productName}]`);
+                        console.log(`✅ Supabase Leads Updated: Upserted ${results.length} stores to [${searchCategory}]`);
                     }
 
                     // حفظ احتياطي محلي في الإكسل (مع تفادي الفشل إذا كان الملف مفتوحاً)
                     try {
-                        await saveToMahallyExcel(productName, results);
+                        await saveToMahallyExcel(searchCategory, results);
                     } catch (excelErr: any) {
                         console.warn('⚠️ Local Excel ExcelJS EBUSY Lock: ', excelErr.message);
                     }

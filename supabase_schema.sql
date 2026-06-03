@@ -148,3 +148,28 @@ CREATE POLICY "Allow anonymous read access" ON public.seo_improvement_logs FOR S
 CREATE POLICY "Allow anonymous insert access" ON public.seo_improvement_logs FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow anonymous update access" ON public.seo_improvement_logs FOR UPDATE USING (true);
 CREATE POLICY "Allow anonymous delete access" ON public.seo_improvement_logs FOR DELETE USING (true);
+
+-- ==========================================
+-- 7. جدول التصنيفات المخصصة (custom_categories)
+-- ==========================================
+CREATE TABLE IF NOT EXISTS public.custom_categories (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL UNIQUE,
+    keywords TEXT[] DEFAULT '{}',
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- للتأكد من إضافة عمود الكلمات المفتاحية في حال كان الجدول منشأً مسبقاً
+ALTER TABLE public.custom_categories ADD COLUMN IF NOT EXISTS keywords TEXT[] DEFAULT '{}';
+
+-- فهارس لضمان السرعة في الاستعلام والتحقق
+CREATE INDEX IF NOT EXISTS idx_custom_categories_name ON public.custom_categories(name);
+
+-- تفعيل سياسات الوصول
+ALTER TABLE public.custom_categories ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow anonymous read access" ON public.custom_categories FOR SELECT USING (true);
+CREATE POLICY "Allow anonymous insert access" ON public.custom_categories FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow anonymous update access" ON public.custom_categories FOR UPDATE USING (true);
+CREATE POLICY "Allow anonymous delete access" ON public.custom_categories FOR DELETE USING (true);
+

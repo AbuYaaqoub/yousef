@@ -22,7 +22,8 @@ import {
     ChevronLeft,
     ChevronRight,
     Filter,
-    X
+    X,
+    Layers
 } from 'lucide-react';
 
 const getBaseUrl = () => {
@@ -60,6 +61,7 @@ interface WaitingItem {
     query: string;
     limit: number;
     status: 'pending' | 'processing' | 'completed' | 'failed';
+    category?: string;
 }
 
 export default function Dashboard() {
@@ -70,6 +72,10 @@ export default function Dashboard() {
     const [source, setSource] = useState<'salla' | 'mahally'>('salla');
     const [mahallyQuery, setMahallyQuery] = useState('');
     const [mahallyLimit, setMahallyLimit] = useState(50);
+    
+    // Custom Categories State
+    const [customCategories, setCustomCategories] = useState<string[]>([]);
+    const [selectedCustomCategory, setSelectedCustomCategory] = useState<string>('عام');
     
     // Waiting List State
     const [waitingList, setWaitingList] = useState<WaitingItem[]>([]);
@@ -98,6 +104,18 @@ export default function Dashboard() {
 
     useEffect(() => {
         setMounted(true);
+        const fetchCustomCategories = async () => {
+            try {
+                const res = await fetch('/api/leads/categories');
+                const data = await res.json();
+                if (data.success && data.categories) {
+                    setCustomCategories(data.categories);
+                }
+            } catch (err) {
+                console.error('Failed to fetch custom categories:', err);
+            }
+        };
+        fetchCustomCategories();
     }, []);
 
     const [copied, setCopied] = useState<string | null>(null);
@@ -149,9 +167,10 @@ export default function Dashboard() {
         }
     };
 
-    const startMahallyScrape = async (overrideQuery?: string, overrideLimit?: number, itemId?: string) => {
+    const startMahallyScrape = async (overrideQuery?: string, overrideLimit?: number, itemId?: string, overrideCategory?: string) => {
         const query = overrideQuery || mahallyQuery;
         const limit = overrideLimit || mahallyLimit;
+        const targetCategory = overrideCategory || selectedCustomCategory;
 
         if (!query.trim()) {
             alert('يرجى إدخال اسم المنتج للبحث');
@@ -168,7 +187,8 @@ export default function Dashboard() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
                     productName: query,
-                    limit: limit 
+                    limit: limit,
+                    category: targetCategory
                 })
             });
 
@@ -236,7 +256,8 @@ export default function Dashboard() {
             id: Math.random().toString(36).substr(2, 9),
             query: mahallyQuery,
             limit: mahallyLimit,
-            status: 'pending'
+            status: 'pending',
+            category: selectedCustomCategory
         };
         setWaitingList(prev => [...prev, newItem]);
         setMahallyQuery('');
@@ -257,7 +278,7 @@ export default function Dashboard() {
                 setWaitingList(prev => prev.map(item => 
                     item.id === nextItem.id ? { ...item, status: 'processing' } : item
                 ));
-                startMahallyScrape(nextItem.query, nextItem.limit, nextItem.id);
+                startMahallyScrape(nextItem.query, nextItem.limit, nextItem.id, nextItem.category);
             } else {
                 // All done or nothing pending
                 setIsQueueRunning(false);
@@ -518,6 +539,21 @@ export default function Dashboard() {
                                     onKeyDown={(e) => e.key === 'Enter' && startMahallyScrape()}
                                 />
                                 <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                            </div>
+
+                            {/* اختيار التصنيف المخصص */}
+                            <div className="relative">
+                                <select
+                                    value={selectedCustomCategory}
+                                    onChange={(e) => setSelectedCustomCategory(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3.5 px-5 pr-9 text-slate-900 appearance-none focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-all cursor-pointer text-sm font-bold"
+                                >
+                                    <option value="عام">التصنيف المستهدف: عام</option>
+                                    {customCategories.filter(c => c !== 'عام').map(name => (
+                                        <option key={name} value={name}>التصنيف المستهدف: {name}</option>
+                                    ))}
+                                </select>
+                                <Layers className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                             </div>
 
                             <div className="flex gap-2">

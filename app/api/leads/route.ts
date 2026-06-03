@@ -59,7 +59,21 @@ export async function GET(req: NextRequest) {
         }
 
         if (category) {
-            query = query.eq('category', category);
+            // التحقق مما إذا كان التصنيف المختار يمثل تصنيفاً مخصصاً لجلب كلماته الدلالية
+            const { data: customCat } = await supabase
+                .from('custom_categories')
+                .select('name, keywords')
+                .eq('name', category)
+                .maybeSingle();
+
+            if (customCat) {
+                const keywords = customCat.keywords || [];
+                // البحث بالاسم المباشر للتصنيف أو بأي من الكلمات الدلالية التابعة له
+                const searchCategories = [customCat.name, ...keywords];
+                query = query.in('category', searchCategories);
+            } else {
+                query = query.eq('category', category);
+            }
         }
 
         // ترتيب الأحدث أولاً وحد أقصى

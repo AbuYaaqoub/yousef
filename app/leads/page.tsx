@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Store, Mail, Phone, ExternalLink, Search, Filter, Loader2, Sparkles, AlertCircle } from 'lucide-react';
+import Link from 'next/link';
+import { Store, Mail, Phone, ExternalLink, Search, Filter, Loader2, Sparkles, AlertCircle, Layers } from 'lucide-react';
 import { StatCard } from '@/components/ui/StatCard';
 import { ActionButton } from '@/components/ui/ActionButton';
 import { SocialIcon } from '@/components/ui/SocialIcon';
@@ -127,6 +128,15 @@ export default function LeadsPage() {
                         المتاجر والمنشآت المستخرجة <Sparkles className="text-amber-500 w-6 h-6 animate-pulse" />
                     </h1>
                     <p className="text-slate-500 text-sm font-medium">تصفح وفلتر واستخرج بيانات المتاجر المكتشفة حياً من قاعدة البيانات السحابية</p>
+                </div>
+                <div className="shrink-0">
+                    <Link
+                        href="/categories"
+                        className="inline-flex items-center gap-2 py-3 px-5 rounded-2xl bg-black hover:bg-zinc-800 text-white font-bold text-xs transition-all shadow-sm cursor-pointer"
+                    >
+                        <Layers size={14} />
+                        <span>إدارة التصنيفات المخصصة</span>
+                    </Link>
                 </div>
             </div>
 

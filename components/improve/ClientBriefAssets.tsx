@@ -27,7 +27,8 @@ import {
     CalendarDays,
     Search,
     Store,
-    Printer
+    Printer,
+    Sparkles
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
@@ -156,9 +157,11 @@ export function ClientBriefAssets({ selectedClient, usingFallback }: ClientBrief
     const [editSummary, setEditSummary] = useState('');
 
     // --- حالات المتاجر المكتشفة (Leads) للمنافسين ---
-    const [discoveredStores, setDiscoveredStores] = useState<{ id: string; store_name: string; store_url: string; website?: string }[]>([]);
+    const [discoveredStores, setDiscoveredStores] = useState<{ id: string; store_name: string; store_url: string; website?: string; category?: string }[]>([]);
     const [leadsSearchText, setLeadsSearchText] = useState('');
     const [selectedLeadId, setSelectedLeadId] = useState('');
+    const [categories, setCategories] = useState<{ name: string; keywords: string[] }[]>([]);
+    const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('all');
 
     // تحميل البيانات عند اختيار العميل
     useEffect(() => {
@@ -236,14 +239,14 @@ export function ClientBriefAssets({ selectedClient, usingFallback }: ClientBrief
         }
     }, [selectedClient, usingFallback]);
 
-    // جلب قائمة المتاجر المكتشفة ديناميكياً
+    // جلب قائمة المتاجر المكتشفة ديناميكياً والتصنيفات
     useEffect(() => {
         const fetchDiscoveredLeads = async () => {
             try {
                 if (!usingFallback) {
                     const { data, error } = await supabase
                         .from('leads')
-                        .select('id, store_name, store_url, website')
+                        .select('id, store_name, store_url, website, category')
                         .order('store_name', { ascending: true });
                     
                     if (error) throw error;
@@ -252,7 +255,8 @@ export function ClientBriefAssets({ selectedClient, usingFallback }: ClientBrief
                             id: d.id,
                             store_name: d.store_name,
                             store_url: d.store_url,
-                            website: d.website || d.store_url
+                            website: d.website || d.store_url,
+                            category: d.category
                         })));
                     }
                 } else {
@@ -270,7 +274,36 @@ export function ClientBriefAssets({ selectedClient, usingFallback }: ClientBrief
             }
         };
 
+        const fetchCategories = async () => {
+            try {
+                if (!usingFallback) {
+                    const { data, error } = await supabase
+                        .from('custom_categories')
+                        .select('name, keywords')
+                        .order('name', { ascending: true });
+                    if (!error && data) {
+                        setCategories(data.map(c => ({
+                            name: c.name,
+                            keywords: c.keywords || []
+                        })));
+                    }
+                } else {
+                    const saved = localStorage.getItem('custom_categories');
+                    if (saved) {
+                        const localCats = JSON.parse(saved);
+                        setCategories(localCats.map((c: any) => ({
+                            name: c.name,
+                            keywords: c.keywords || []
+                        })));
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to load categories for filter:', e);
+            }
+        };
+
         fetchDiscoveredLeads();
+        fetchCategories();
     }, [selectedClient, usingFallback]);
 
     const syncFormStates = (data: ClientBriefData) => {
@@ -367,6 +400,54 @@ export function ClientBriefAssets({ selectedClient, usingFallback }: ClientBrief
         };
         await saveBriefData(updated);
         setIsEditingSummary(false);
+    };
+
+    const handleCopySummaryPrompt = () => {
+        const questionsList = [
+            { q: "من هي الشركة وتاريخ تأسيسها وعمرها وخبرتها في السوق؟", a: briefData.company_intro },
+            { q: "ما هي الخدمات والمنتجات التي تقدمها الشركة لعملائها بالتفصيل؟", a: briefData.services_provided },
+            { q: "خطوات تقديم الخدمات من لحظة استلام الطلب وحتى تسليمه النهائي للعميل؟", a: briefData.service_steps },
+            { q: "ما هي نقاط البيع والميزات التنافسية الحالية للشركة التي تميزها عن غيرها؟", a: briefData.selling_points },
+            { q: "ما هي المشكلات أو العقبات التسويقية الحالية التي تواجه المبيعات أو ركود منتجات محددة؟", a: briefData.marketing_problems },
+            { q: "لماذا تقرر البدء in هذه الحملة حالياً؟ هل هو إطلاق جديد، زيادة مبيعات، أم مواجهة منافسة؟", a: briefData.campaign_reason },
+            { q: "ما هي نقاط قوة الشركة البشرية (فريق العمل الخبير) والمادية (البنية التحتية، الأجهزة، المواد الفاخرة)؟", a: briefData.company_strengths },
+            { q: "من هو عميلك المثالي المستهدف (Target Audience Persona) واهتماماته وسلوكه بالتفصيل؟", a: briefData.target_client_detail },
+            { q: "من هو المنافس لك في محركات البحث والإنترنت والمنافسين على أرض الواقع؟", a: briefData.competitors_online_offline },
+            { q: "ما هو الهدف الأساسي والتجاري الذي ترغبون في تحقيقه من التعاقد مع المستشار م/ أحمد خطاب؟", a: briefData.contract_goal_khattab },
+            { q: "ما هي الرسالة والتوجه الجوهري الذي ترغبون في إرساله من خلال الحملة وتثبيته في ذهن المستخدم؟", a: briefData.campaign_message },
+            { q: "عند الدخول للموقع: ما الذي يجب أن (يفكر فيه) العميل، وبماذا (يشعر)، وما الإجراء الذي (يفعله) مباشرة؟", a: briefData.audience_think_feel_do },
+            { q: "مواعيد ووتيرة الاجتماعات الدورية المتفق عليها وتواريخ تسليم التقارير الفنية الدورية؟", a: briefData.meetings_reports_schedule },
+            { q: "ما هي توقعاتكم وأرقامكم المستهدفة للحملة (نسبة زيادة المبيعات، تصدر الكلمات)؟", a: briefData.campaign_expectations },
+            { q: "الوقت المتوقع للبدء في رؤية النتائج الملموسة للحملة (المتوقع عادة من ٣ إلى ٦ أشهر لضمان الصبر والعمل السليم)؟", a: briefData.results_timeframe },
+            { q: "من هو صاحب الكلمة النهائية والمعتمد لاتخاذ القرارات مع م/ أحمد خطاب لتفادي تشتت القرار؟", a: briefData.final_decision_maker },
+            { q: "هل يوجد أي تقييد ديني أو سياسي أو أخلاقي يجب مراعاته وتجنبه نهائياً بالرسائل التسويقية والمحتوى؟", a: briefData.religious_political_restrictions }
+        ];
+
+        const formattedQuestions = questionsList.map((item, idx) => 
+            `السؤال ${idx + 1}: ${item.q}\nالإجابة: ${item.a || '---'}`
+        ).join('\n\n');
+
+        const promptText = `أنت مستشار استراتيجي، وخبير سيو وتخطيط تسويقي محترف. أمامك إجابات العميل على استمارة البريف وبنود التعاقد الـ 17 للعمل مع المستشار م/ أحمد خطاب.
+
+المطلوب منك:
+كتابة ملخص تنفيذي (Executive Summary) طويل ومفصل ومنظم جداً لبريف العميل هذا ليكون مرجع عمل متكامل ومكتوب بلغة تسويقية بليغة ومقنعة وعميقة (أريد مخرجات طويلة ومفصلة وشاملة، تجنب الاختصار الشديد).
+
+يجب أن ينقسم الملخص إلى المحاور التالية ويغطيها بالتفصيل بناءً على إجابات البريف المرفقة:
+1. فهم طبيعة عمل الشركة والخدمات التي تقدمها ونقاط قوتها التنافسية.
+2. التحديات والمشكلات التسويقية الحالية التي تعاني منها والجمهور المستهدف بالتفصيل.
+3. أهداف الحملة الإعلانية والرسائل الجوهرية والنتائج المتوقع تحقيقها.
+4. الجوانب الإدارية والجدول الزمني المتفق عليه وتوقعات النتائج.
+
+يرجى صياغة الملخص باللغة العربية الفصحى وبأسلوب مهني فاخر.
+
+إليك إجابات العميل الـ 17 بالتفصيل للبدء في الصياغة:
+=========================================
+${formattedQuestions}
+=========================================`;
+
+        navigator.clipboard.writeText(promptText);
+        setSuccessSaveMsg('🪄 تم نسخ برومبت الملخص بالكامل للحافظة!');
+        setTimeout(() => setSuccessSaveMsg(''), 2500);
     };
 
     const handleSaveFonts = async () => {
@@ -857,11 +938,24 @@ export function ClientBriefAssets({ selectedClient, usingFallback }: ClientBrief
     };
 
     // تصفية وخفض حجم خيارات المتاجر المكتشفة تسريعاً للأداء
-    const filteredLeads = discoveredStores.filter(store => 
-        store.store_name.toLowerCase().includes(leadsSearchText.toLowerCase()) ||
-        store.store_url.toLowerCase().includes(leadsSearchText.toLowerCase()) ||
-        (store.website && store.website.toLowerCase().includes(leadsSearchText.toLowerCase()))
-    ).slice(0, 100);
+    const filteredLeads = discoveredStores.filter(store => {
+        const matchesSearch = store.store_name.toLowerCase().includes(leadsSearchText.toLowerCase()) ||
+            store.store_url.toLowerCase().includes(leadsSearchText.toLowerCase()) ||
+            (store.website && store.website.toLowerCase().includes(leadsSearchText.toLowerCase()));
+            
+        const matchesCategory = selectedCategoryFilter === 'all' || 
+            (store.category && (
+                store.category.toLowerCase() === selectedCategoryFilter.toLowerCase() ||
+                (() => {
+                    const catObj = categories.find(c => c.name.toLowerCase() === selectedCategoryFilter.toLowerCase());
+                    return catObj?.keywords?.some((kw: string) => 
+                        kw.trim().toLowerCase() === store.category!.trim().toLowerCase()
+                    ) || false;
+                })()
+            ));
+            
+        return matchesSearch && matchesCategory;
+    }).slice(0, 100);
 
     const insertDiscoveredLeadAsCompetitor = () => {
         const lead = discoveredStores.find(d => d.id === selectedLeadId);
@@ -1158,7 +1252,7 @@ export function ClientBriefAssets({ selectedClient, usingFallback }: ClientBrief
                                             
                                             <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
                                                 {/* مربع نص تصفية المتاجر */}
-                                                <div className="sm:col-span-5 relative">
+                                                <div className="sm:col-span-4 relative">
                                                     <input 
                                                         type="text" 
                                                         placeholder="ابحث باسم المتجر أو الرابط..."
@@ -1168,15 +1262,35 @@ export function ClientBriefAssets({ selectedClient, usingFallback }: ClientBrief
                                                     />
                                                     <Search className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
                                                 </div>
+
+                                                {/* قائمة تصفية التصنيفات */}
+                                                <div className="sm:col-span-3">
+                                                    <select
+                                                        value={selectedCategoryFilter}
+                                                        onChange={(e) => {
+                                                            setSelectedCategoryFilter(e.target.value);
+                                                            setSelectedLeadId(''); // reset store selection when category changes
+                                                        }}
+                                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-[10.5px] font-bold outline-none focus:border-black focus:bg-white text-slate-800 transition-all cursor-pointer"
+                                                    >
+                                                        <option value="all">كل التصنيفات</option>
+                                                        <option value="عام">عام (غير مصنف)</option>
+                                                        {categories.map(cat => (
+                                                            <option key={cat.name} value={cat.name}>
+                                                                {cat.name}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </div>
                                                 
                                                 {/* قائمة الخيارات المفهرسة والمفلترة */}
-                                                <div className="sm:col-span-5">
+                                                <div className="sm:col-span-3">
                                                     <select
                                                         value={selectedLeadId}
                                                         onChange={(e) => setSelectedLeadId(e.target.value)}
                                                         className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-[10.5px] font-bold outline-none focus:border-black focus:bg-white text-slate-800 transition-all cursor-pointer"
                                                     >
-                                                        <option value="">-- اختر من قائمة المتاجر ({filteredLeads.length}) --</option>
+                                                        <option value="">-- اختر من المتاجر ({filteredLeads.length}) --</option>
                                                         {filteredLeads.map(store => (
                                                             <option key={store.id} value={store.id}>
                                                                 {store.store_name} ({store.website || store.store_url})
@@ -1191,7 +1305,7 @@ export function ClientBriefAssets({ selectedClient, usingFallback }: ClientBrief
                                                         type="button"
                                                         onClick={insertDiscoveredLeadAsCompetitor}
                                                         disabled={!selectedLeadId}
-                                                        className="w-full py-2 px-3 bg-black hover:bg-zinc-800 text-white disabled:bg-slate-200 disabled:text-slate-400 font-black text-[10px] rounded-xl transition-all shadow-sm flex items-center justify-center gap-1"
+                                                        className="w-full py-2 px-3 bg-black hover:bg-zinc-800 text-white disabled:bg-slate-200 disabled:text-slate-400 font-black text-[10px] rounded-xl transition-all shadow-sm flex items-center justify-center gap-1 cursor-pointer"
                                                     >
                                                         <Plus size={12} />
                                                         <span>إدراج كمنافس</span>
@@ -1407,16 +1521,26 @@ export function ClientBriefAssets({ selectedClient, usingFallback }: ClientBrief
                                 </button>
                             </div>
                         ) : (
-                            <button
-                                onClick={() => {
-                                    setEditSummary(briefData.summary || '');
-                                    setIsEditingSummary(true);
-                                }}
-                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-zinc-200 text-zinc-700 hover:border-black hover:text-black hover:bg-zinc-50 text-[10px] font-black transition-all shadow-sm"
-                            >
-                                <Edit3 size={12} />
-                                <span>تعديل الملخص</span>
-                            </button>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={handleCopySummaryPrompt}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-zinc-200 bg-zinc-50 text-zinc-700 hover:border-black hover:text-black hover:bg-zinc-100 text-[10px] font-black transition-all shadow-sm animate-pulse hover:animate-none"
+                                    title="نسخ الأسئلة وإجابات العميل الحالية كبرومبت للذكاء الاصطناعي لتلخيصها بشكل مفصل وطويل"
+                                >
+                                    <Sparkles size={12} className="text-amber-500" />
+                                    <span>نسخ برومبت الذكاء الاصطناعي</span>
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setEditSummary(briefData.summary || '');
+                                        setIsEditingSummary(true);
+                                    }}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-zinc-200 text-zinc-700 hover:border-black hover:text-black hover:bg-zinc-50 text-[10px] font-black transition-all shadow-sm"
+                                >
+                                    <Edit3 size={12} />
+                                    <span>تعديل الملخص</span>
+                                </button>
+                            </div>
                         )}
                     </div>
                 </div>

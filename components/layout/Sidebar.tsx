@@ -17,7 +17,8 @@ import {
     BookOpen,
     Plus,
     Trash2,
-    Database
+    Database,
+    Layers
 } from 'lucide-react';
 
 const navigation = [
@@ -26,6 +27,7 @@ const navigation = [
     { name: 'كاشط منصة مزيد', href: '/2', icon: Search },
     { name: 'كاشط خرائط قوقل', href: '/3', icon: Globe },
     { name: 'المتاجر المكتشفة', href: '/leads', icon: Users },
+    { name: 'التصنيفات المخصصة', href: '/categories', icon: Layers },
     { name: 'سجل العمليات', href: '/history', icon: History },
     { name: 'الإعدادات والربط', href: '/settings', icon: Settings },
 ];

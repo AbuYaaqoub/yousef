@@ -24,7 +24,8 @@ import {
     Terminal,
     X,
     Star,
-    Map
+    Map,
+    Layers
 } from 'lucide-react';
 
 const getBaseUrl = () => {
@@ -66,6 +67,7 @@ interface WaitingItem {
     query: string;
     limit: number;
     status: 'pending' | 'processing' | 'completed' | 'failed';
+    category?: string;
 }
 
 export default function GoogleMapsDashboard() {
@@ -76,6 +78,10 @@ export default function GoogleMapsDashboard() {
     
     const [searchQuery, setSearchQuery] = useState('');
     const [scrapeLimit, setScrapeLimit] = useState(50);
+    
+    // Custom Categories State
+    const [customCategories, setCustomCategories] = useState<string[]>([]);
+    const [selectedCustomCategory, setSelectedCustomCategory] = useState<string>('عام');
     
     // Live Terminal Logs State
     const [logs, setLogs] = useState<string[]>([]);
@@ -115,6 +121,18 @@ export default function GoogleMapsDashboard() {
     useEffect(() => {
         setMounted(true);
         fetchSheets();
+        const fetchCustomCategories = async () => {
+            try {
+                const res = await fetch('/api/leads/categories');
+                const data = await res.json();
+                if (data.success && data.categories) {
+                    setCustomCategories(data.categories);
+                }
+            } catch (err) {
+                console.error('Failed to fetch custom categories:', err);
+            }
+        };
+        fetchCustomCategories();
     }, []);
 
     // Load / Save Waiting List
@@ -160,9 +178,10 @@ export default function GoogleMapsDashboard() {
         setTimeout(() => setCopied(null), 2000);
     };
 
-    const startMapsScrape = async (overrideQuery?: string, overrideLimit?: number, itemId?: string) => {
+    const startMapsScrape = async (overrideQuery?: string, overrideLimit?: number, itemId?: string, overrideCategory?: string) => {
         const query = overrideQuery || searchQuery;
         const limit = overrideLimit || scrapeLimit;
+        const targetCategory = overrideCategory || selectedCustomCategory;
 
         if (!query.trim()) {
             alert('يرجى إدخال كلمة البحث الجغرافية أولاً (مثال: عيادات أسنان الرياض)');
@@ -179,7 +198,8 @@ export default function GoogleMapsDashboard() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
                     searchQuery: query,
-                    limit: limit 
+                    limit: limit,
+                    category: targetCategory
                 })
             });
 
@@ -247,7 +267,8 @@ export default function GoogleMapsDashboard() {
             id: Math.random().toString(36).substr(2, 9),
             query: searchQuery,
             limit: scrapeLimit,
-            status: 'pending'
+            status: 'pending',
+            category: selectedCustomCategory
         };
         setWaitingList(prev => [...prev, newItem]);
         setSearchQuery('');
@@ -268,7 +289,7 @@ export default function GoogleMapsDashboard() {
                 setWaitingList(prev => prev.map(item => 
                     item.id === nextItem.id ? { ...item, status: 'processing' } : item
                 ));
-                startMapsScrape(nextItem.query, nextItem.limit, nextItem.id);
+                startMapsScrape(nextItem.query, nextItem.limit, nextItem.id, nextItem.category);
             } else {
                 setIsQueueRunning(false);
             }
@@ -450,6 +471,21 @@ export default function GoogleMapsDashboard() {
                                     onKeyDown={(e) => e.key === 'Enter' && startMapsScrape()}
                                 />
                                 <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                            </div>
+
+                            {/* اختيار التصنيف المخصص */}
+                            <div className="relative">
+                                <select
+                                    value={selectedCustomCategory}
+                                    onChange={(e) => setSelectedCustomCategory(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 px-5 pr-9 text-slate-900 appearance-none focus:outline-none focus:ring-2 focus:ring-black focus:border-black transition-all cursor-pointer text-sm font-bold"
+                                >
+                                    <option value="عام">التصنيف المستهدف: عام</option>
+                                    {customCategories.filter(c => c !== 'عام').map(name => (
+                                        <option key={name} value={name}>التصنيف المستهدف: {name}</option>
+                                    ))}
+                                </select>
+                                <Layers className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                             </div>
 
                             <div className="flex gap-2">

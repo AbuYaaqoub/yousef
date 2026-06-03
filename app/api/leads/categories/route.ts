@@ -5,6 +5,18 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
     try {
+        // 1. محاولة جلب التصنيفات المخصصة من جدول custom_categories أولاً
+        const { data: customCats, error: customCatsError } = await supabase
+            .from('custom_categories')
+            .select('name')
+            .order('name', { ascending: true });
+
+        if (!customCatsError && customCats && customCats.length > 0) {
+            const categories = customCats.map(c => c.name);
+            return NextResponse.json({ success: true, categories });
+        }
+
+        // 2. إذا كان الجدول فارغاً أو غير موجود، نتراجع لجلب التصنيفات الحالية الفريدة من جدول المتاجر (leads)
         const categoriesSet = new Set<string>();
         let from = 0;
         let to = 999;

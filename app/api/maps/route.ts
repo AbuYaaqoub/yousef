@@ -2,13 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { scrapeMapsLeads } from '@/lib/scraper/mapsScraper';
 import { saveToMapsExcel } from '@/lib/excel/mapsExcel';
 import { clearCancel } from '@/lib/scraper/cancelSignal';
-import { supabase } from '@/lib/supabase';
+import { supabase, autoDetectCategory } from '@/lib/supabase';
 
 export async function POST(req: NextRequest) {
-    const { searchQuery, limit } = await req.json();
+    const { searchQuery, limit, category } = await req.json();
     if (!searchQuery) return NextResponse.json({ error: 'Search query is required' }, { status: 400 });
 
     const maxResults = limit || 50;
+    
+    // محاولة تصنيف المتاجر تلقائياً بناءً على الكلمة المفتاحية في حال عدم اختيار تصنيف محدد
+    let searchCategory = category && category !== 'عام' ? category : 'عام';
+    if (searchCategory === 'عام') {
+        searchCategory = await autoDetectCategory(searchQuery, 'عام');
+    }
     const jobId = 'maps-scrape';
     clearCancel(jobId);
 
@@ -52,7 +58,7 @@ export async function POST(req: NextRequest) {
                         store_url: item.website || item.mapsUrl || '',
                         sub_text: `العنوان: ${item.address || ''} | التقييم: ${item.rating || 0} (${item.reviewsCount || 0} مراجعة)`,
                         source: 'maps',
-                        category: searchQuery,
+                        category: searchCategory,
                         rating: '🟡 متوسط',
                         is_enriched: false,
                         phone: item.phone || '',
@@ -70,12 +76,12 @@ export async function POST(req: NextRequest) {
                     if (upsertError) {
                         console.error('❌ Supabase Leads Upsert Error:', upsertError);
                     } else {
-                        console.log(`✅ Supabase Leads Updated: Upserted ${results.length} stores to [${searchQuery}]`);
+                        console.log(`✅ Supabase Leads Updated: Upserted ${results.length} stores to [${searchCategory}]`);
                     }
 
                     // حفظ احتياطي محلي في الإكسل الخاص بخرائط قوقل في النهاية
                     try {
-                        await saveToMapsExcel(searchQuery, results);
+                        await saveToMapsExcel(searchCategory, results);
                     } catch (excelErr: any) {
                         console.warn('⚠️ Local Excel EBUSY Lock: ', excelErr.message);
                     }
