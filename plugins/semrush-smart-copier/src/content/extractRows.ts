@@ -92,10 +92,123 @@ function extractCellValue(cell: Element, headerName: string): string {
     if (tooltipValue) return tooltipValue;
   }
 
+  // Special extraction for Intent column
+  if (headerLower.includes('intent') || headerLower.includes('نية') || headerLower.includes('قصد')) {
+    const intentValue = extractIntentValue(cell);
+    if (intentValue) return intentValue;
+  }
+
+  // Special extraction for SERP Features (SF) column
+  if (headerLower === 'sf' || headerLower === 'serp features' || headerLower.includes('ميزات') || headerLower.includes('ميزة')) {
+    const sfValue = extractSFValue(cell);
+    if (sfValue) return sfValue;
+  }
+
   // Get display text
   const displayText = getCellDisplayText(cell);
 
   return displayText;
+}
+
+function extractIntentValue(cell: Element): string {
+  const intents: string[] = [];
+
+  const walk = (node: Node) => {
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      const el = node as Element;
+      const dataIntent = el.getAttribute('data-intent');
+      if (dataIntent) {
+        intents.push(dataIntent.trim());
+        return;
+      }
+      
+      const children = el.children;
+      if (children.length === 0) {
+        const text = (el.textContent || '').trim();
+        if (text === 'I' || text === 'N' || text === 'C' || text === 'T' ||
+            text === 'i' || text === 'n' || text === 'c' || text === 't') {
+          intents.push(text.toUpperCase());
+          return;
+        }
+      }
+    }
+    
+    for (let i = 0; i < node.childNodes.length; i++) {
+      walk(node.childNodes[i]);
+    }
+  };
+
+  walk(cell);
+
+  if (intents.length > 0) {
+    const uniqueIntents = Array.from(new Set(intents));
+    return uniqueIntents.join(' ');
+  }
+
+  // Check raw text content for patterns like "I", "I T", etc.
+  const rawText = (cell.textContent || '').trim();
+  const cleanRawText = rawText.replace(/\s+/g, ' ').trim();
+  const pattern = /^[INCT](\s+[INCT])*$/i;
+  if (pattern.test(cleanRawText)) {
+    return cleanRawText.toUpperCase();
+  }
+
+  // Look for full word triggers in case-insensitive text
+  const lowerRaw = rawText.toLowerCase();
+  const matchedFull: string[] = [];
+  if (lowerRaw.includes('informational')) matchedFull.push('I');
+  if (lowerRaw.includes('navigational')) matchedFull.push('N');
+  if (lowerRaw.includes('commercial')) matchedFull.push('C');
+  if (lowerRaw.includes('transactional')) matchedFull.push('T');
+  if (matchedFull.length > 0) {
+    return matchedFull.join(' ');
+  }
+
+  // Fallback to text nodes exact match
+  const textNodes: string[] = [];
+  const textWalk = (node: Node) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const text = (node.textContent || '').trim();
+      if (text === 'I' || text === 'N' || text === 'C' || text === 'T' ||
+          text === 'i' || text === 'n' || text === 'c' || text === 't') {
+        textNodes.push(text.toUpperCase());
+      }
+    } else {
+      for (let i = 0; i < node.childNodes.length; i++) {
+        textWalk(node.childNodes[i]);
+      }
+    }
+  };
+  textWalk(cell);
+  if (textNodes.length > 0) {
+    return Array.from(new Set(textNodes)).join(' ');
+  }
+
+  return '';
+}
+
+function extractSFValue(cell: Element): string {
+  const features: string[] = [];
+  
+  // Find all elements with title, aria-label, data-tooltip or tippy-content
+  const elements = cell.querySelectorAll('[title], [aria-label], [data-tooltip], [data-tippy-content]');
+  elements.forEach(el => {
+    const text = el.getAttribute('title') || 
+                 el.getAttribute('aria-label') || 
+                 el.getAttribute('data-tooltip') || 
+                 el.getAttribute('data-tippy-content') || '';
+    const clean = text.trim();
+    if (clean && !features.includes(clean)) {
+      features.push(clean);
+    }
+  });
+
+  if (features.length === 0) {
+    const text = (cell.textContent || '').trim();
+    if (text) return text;
+  }
+  
+  return features.join(', ');
 }
 
 function isNumericHeader(header: string): boolean {

@@ -4,7 +4,7 @@
   "description": "Chrome extension to copy SEMrush tables nicely to Excel",
   "main": "content/index.js",
   "scripts": {
-    "build": "esbuild src/content/index.ts --bundle --outfile=content/index.js --minify",
+    "build": "esbuild src/content/index.ts --bundle --outfile=content/index.js --minify && esbuild src/background/index.ts --bundle --outfile=background.js --minify",
     "watch": "esbuild src/content/index.ts --bundle --outfile=content/index.js --watch"
   },
   "keywords": [

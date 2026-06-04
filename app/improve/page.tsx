@@ -315,6 +315,120 @@ export default function SEOClientManager() {
         }
     };
 
+    const handleDeleteKeywords = async (ids: string[]) => {
+        if (!ids || ids.length === 0) return;
+        if (usingFallback) {
+            const localKDB = JSON.parse(localStorage.getItem('seo_keywords_database') || '[]');
+            const updated = localKDB.filter((item: any) => !ids.includes(item.id));
+            localStorage.setItem('seo_keywords_database', JSON.stringify(updated));
+            setKeywordsDB(keywordsDB.filter(k => !ids.includes(k.id)));
+        } else {
+            const { error } = await supabase.from('seo_keywords_database').delete().in('id', ids);
+            if (error) throw error;
+            setKeywordsDB(keywordsDB.filter(k => !ids.includes(k.id)));
+        }
+    };
+
+    const handleBulkTargetKeywords = async (
+        clientId: string,
+        location: string,
+        status: 'used' | 'changed' | 'review',
+        reviewDays: number,
+        items: any[],
+        shouldDeleteSuggestions: boolean
+    ) => {
+        if (!items || items.length === 0) return;
+        const newDate = new Date(Date.now() + reviewDays * 24 * 60 * 60 * 1000).toISOString();
+
+        const newItems = items.map(item => {
+            const generatedId = usingFallback 
+                ? `ck-${Date.now()}-${Math.random()}` 
+                : (typeof window !== 'undefined' && window.crypto && window.crypto.randomUUID 
+                    ? window.crypto.randomUUID() 
+                    : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+                        const r = Math.random() * 16 | 0;
+                        return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+                    })
+                );
+
+            return {
+                id: generatedId,
+                client_id: clientId,
+                keyword: item.keyword,
+                status: status,
+                location: location,
+                page_url: '',
+                kd: item.kd || 0,
+                volume: item.volume || 0,
+                platform: item.platform || 'semrush',
+                source_site: item.source_site || '',
+                intent: item.intent || '',
+                cpc: item.cpc || 0.0,
+                sf: item.sf || '',
+                review_due_at: newDate
+            };
+        });
+
+        if (usingFallback) {
+            const localCK = JSON.parse(localStorage.getItem('seo_client_keywords') || '[]');
+            const updated = [...localCK, ...newItems];
+            localStorage.setItem('seo_client_keywords', JSON.stringify(updated));
+            if (selectedClient && clientId === selectedClient.id) {
+                setClientKeywords([...clientKeywords, ...newItems]);
+            }
+        } else {
+            try {
+                const { data, error } = await supabase.from('seo_client_keywords').insert(newItems).select();
+                if (error) {
+                    if (error.code === '42703') {
+                        const fallbackItems = newItems.map(item => {
+                            const fb = { ...item };
+                            delete (fb as any).page_url;
+                            delete (fb as any).kd;
+                            delete (fb as any).volume;
+                            delete (fb as any).platform;
+                            delete (fb as any).source_site;
+                            delete (fb as any).intent;
+                            delete (fb as any).cpc;
+                            delete (fb as any).sf;
+                            return fb;
+                        });
+                        const { data: retryData, error: retryError } = await supabase.from('seo_client_keywords').insert(fallbackItems).select();
+                        if (retryError) throw retryError;
+                        if (retryData && selectedClient && clientId === selectedClient.id) {
+                            const matched = retryData.map((d, idx) => ({
+                                ...d,
+                                page_url: newItems[idx].page_url,
+                                kd: newItems[idx].kd,
+                                volume: newItems[idx].volume,
+                                platform: newItems[idx].platform,
+                                source_site: newItems[idx].source_site,
+                                intent: newItems[idx].intent,
+                                cpc: newItems[idx].cpc,
+                                sf: newItems[idx].sf
+                            }));
+                            setClientKeywords([...clientKeywords, ...matched]);
+                        }
+                    } else {
+                        throw error;
+                    }
+                } else if (data && selectedClient && clientId === selectedClient.id) {
+                    setClientKeywords([...clientKeywords, ...data]);
+                }
+            } catch (err) {
+                console.error('Bulk target database insert failed, falling back to local state:', err);
+                if (selectedClient && clientId === selectedClient.id) {
+                    setClientKeywords([...clientKeywords, ...newItems]);
+                }
+            }
+        }
+
+        if (shouldDeleteSuggestions) {
+            const suggestionIds = items.map(item => item.id);
+            await handleDeleteKeywords(suggestionIds);
+        }
+    };
+
     // --- أحداث كلمات العميل النشطة ---
     const handleAddClientKeyword = async (
         clientId: string,
@@ -670,6 +784,8 @@ export default function SEOClientManager() {
                                 usingFallback={usingFallback}
                                 onAddKeyword={handleAddKeyword}
                                 onDeleteKeyword={handleDeleteKeyword}
+                                onDeleteKeywords={handleDeleteKeywords}
+                                onBulkTargetKeywords={handleBulkTargetKeywords}
                                 onSwitchTab={() => setActiveSubTab('client_keywords')}
                                 isWideView={isWideView}
                             />
@@ -681,6 +797,7 @@ export default function SEOClientManager() {
                                 selectedClient={selectedClient}
                                 clients={clients}
                                 clientKeywords={clientKeywords}
+                                keywordsDB={keywordsDB}
                                 usingFallback={usingFallback}
                                 onAddClientKeyword={handleAddClientKeyword}
                                 onUpdateStatus={handleUpdateStatus}

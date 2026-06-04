@@ -40,6 +40,15 @@ interface KeywordsDatabaseProps {
         sf?: string
     ) => Promise<void>;
     onDeleteKeyword: (id: string) => Promise<void>;
+    onDeleteKeywords: (ids: string[]) => Promise<void>;
+    onBulkTargetKeywords: (
+        clientId: string,
+        location: string,
+        status: 'used' | 'changed' | 'review',
+        reviewDays: number,
+        items: any[],
+        shouldDeleteSuggestions: boolean
+    ) => Promise<void>;
     onSwitchTab: () => void;
     isWideView?: boolean;
 }
@@ -51,6 +60,8 @@ export function KeywordsDatabase({
     usingFallback,
     onAddKeyword,
     onDeleteKeyword,
+    onDeleteKeywords,
+    onBulkTargetKeywords,
     onSwitchTab,
     isWideView = false
 }: KeywordsDatabaseProps) {
@@ -74,9 +85,94 @@ export function KeywordsDatabase({
     const [newKeywordSF, setNewKeywordSF] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // حالات التحديد الجماعي
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
+    
+    // حالات مودال الترحيل الجماعي
+    const [showBulkTargetModal, setShowBulkTargetModal] = useState(false);
+    const [bulkClientId, setBulkClientId] = useState(selectedClient.id);
+    const [bulkLocation, setBulkLocation] = useState('الصفحة الرئيسية');
+    const [bulkStatus, setBulkStatus] = useState<'used' | 'changed' | 'review'>('review');
+    const [bulkReviewDays, setBulkReviewDays] = useState(7);
+    const [shouldDeleteAfterBulk, setShouldDeleteAfterBulk] = useState(true);
+    const [isBulkSubmitting, setIsBulkSubmitting] = useState(false);
+
     useEffect(() => {
         setTargetClientId(selectedClient.id);
+        setBulkClientId(selectedClient.id);
+        setSelectedIds([]); // مسح التحديد عند تغيير العميل النشط
     }, [selectedClient]);
+
+    // مسح التحديد إذا تغيرت نتائج البحث أو الفلاتر لضمان دقة الاختيار
+    useEffect(() => {
+        setSelectedIds([]);
+    }, [searchQuery, platformFilter, kdFilter]);
+
+    const handleSelectAllToggle = () => {
+        const filteredIds = filteredKeywordsDB.map(item => item.id);
+        const allFilteredSelected = filteredIds.every(id => selectedIds.includes(id));
+        
+        if (allFilteredSelected) {
+            setSelectedIds(prev => prev.filter(id => !filteredIds.includes(id)));
+        } else {
+            setSelectedIds(prev => {
+                const newSelection = [...prev];
+                filteredIds.forEach(id => {
+                    if (!newSelection.includes(id)) {
+                        newSelection.push(id);
+                    }
+                });
+                return newSelection;
+            });
+        }
+    };
+
+    const handleSelectToggle = (id: string) => {
+        setSelectedIds(prev => 
+            prev.includes(id) 
+                ? prev.filter(item => item !== id) 
+                : [...prev, id]
+        );
+    };
+
+    const handleBulkDeleteClick = async () => {
+        if (selectedIds.length === 0) return;
+        const confirmDelete = window.confirm(`هل أنت متأكد من رغبتك في حذف ${selectedIds.length} كلمة مفتاحية دفعة واحدة؟`);
+        if (!confirmDelete) return;
+
+        try {
+            await onDeleteKeywords(selectedIds);
+            setSelectedIds([]);
+        } catch (err) {
+            console.error('Error during bulk deletion:', err);
+        }
+    };
+
+    const handleBulkTargetSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (selectedIds.length === 0 || isBulkSubmitting) return;
+
+        try {
+            setIsBulkSubmitting(true);
+            const selectedItems = keywordsDB.filter(item => selectedIds.includes(item.id));
+            
+            await onBulkTargetKeywords(
+                bulkClientId,
+                bulkLocation,
+                bulkStatus,
+                bulkReviewDays,
+                selectedItems,
+                shouldDeleteAfterBulk
+            );
+
+            setSelectedIds([]);
+            setShowBulkTargetModal(false);
+        } catch (err) {
+            console.error('Error during bulk target/promotion:', err);
+        } finally {
+            setIsBulkSubmitting(false);
+        }
+    };
 
     const handleAddSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -221,11 +317,45 @@ export function KeywordsDatabase({
                 </div>
             </div>
 
+            {/* شريط الإجراءات الجماعية الفاخر */}
+            {selectedIds.length > 0 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-zinc-950 text-white rounded-2xl animate-in fade-in slide-in-from-top-4 duration-300 shadow-lg shadow-zinc-950/20">
+                    <div className="flex items-center gap-3">
+                        <span className="flex items-center justify-center w-6 h-6 rounded-lg bg-white/20 text-xs font-black text-white">
+                            {selectedIds.length}
+                        </span>
+                        <span className="text-xs font-black">كلمات مفتاحية تم اختيارها للتعديل الجماعي</span>
+                    </div>
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <button
+                            onClick={() => setShowBulkTargetModal(true)}
+                            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-white text-zinc-950 hover:bg-zinc-100 font-black text-xs transition-all"
+                        >
+                            🎯 ترحيل واستهداف جماعي
+                        </button>
+                        <button
+                            onClick={handleBulkDeleteClick}
+                            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-zinc-800 hover:bg-rose-950 hover:text-rose-200 text-zinc-300 font-bold text-xs transition-all border border-zinc-700/50"
+                        >
+                            🗑️ حذف جماعي
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {/* جدول الكلمات */}
             <div className="overflow-x-auto border border-slate-100 rounded-2xl">
                 <table className={cn("w-full text-right border-collapse transition-all duration-300", isWideView ? "min-w-[1100px]" : "min-w-full")}>
                     <thead>
                         <tr className="bg-slate-50/80 border-b border-slate-100 text-slate-500 text-[10px] font-black uppercase tracking-wider">
+                            <th className="p-4 text-center w-[45px] border-l border-slate-100/80">
+                                <input 
+                                    type="checkbox"
+                                    className="w-4 h-4 rounded border-slate-300 text-zinc-950 focus:ring-zinc-950 cursor-pointer"
+                                    checked={filteredKeywordsDB.length > 0 && filteredKeywordsDB.every(item => selectedIds.includes(item.id))}
+                                    onChange={handleSelectAllToggle}
+                                />
+                            </th>
                             <th className={cn("p-4 transition-all duration-300", isWideView ? "w-[18%] min-w-[180px] border-l border-slate-100/80" : "")}>الكلمة المفتاحية</th>
                             <th className={cn("p-4 text-center transition-all duration-300", isWideView ? "w-[10%] min-w-[90px] border-l border-slate-100/80" : "")}>نية البحث</th>
                             <th className={cn("p-4 text-center transition-all duration-300", isWideView ? "w-[10%] min-w-[90px] border-l border-slate-100/80" : "")}>الصعوبة KD</th>
@@ -240,14 +370,22 @@ export function KeywordsDatabase({
                     <tbody className="text-xs font-bold text-slate-700 divide-y divide-slate-100">
                         {filteredKeywordsDB.length === 0 ? (
                             <tr>
-                                <td colSpan={9} className="p-12 text-center text-slate-400">
+                                <td colSpan={10} className="p-12 text-center text-slate-400">
                                     <Database className="mx-auto mb-3 text-slate-300" size={24} />
                                     <span>لا توجد كلمات مفتاحية تطابق خيارات التصفية الحالية</span>
                                 </td>
                             </tr>
                         ) : (
                             filteredKeywordsDB.map((item) => (
-                                <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
+                                <tr key={item.id} className={cn("transition-colors", selectedIds.includes(item.id) ? "bg-slate-50 hover:bg-slate-100/80" : "hover:bg-slate-50/50")}>
+                                    <td className="p-4 text-center border-l border-slate-100/50">
+                                        <input 
+                                            type="checkbox"
+                                            className="w-4 h-4 rounded border-slate-300 text-zinc-950 focus:ring-zinc-950 cursor-pointer"
+                                            checked={selectedIds.includes(item.id)}
+                                            onChange={() => handleSelectToggle(item.id)}
+                                        />
+                                    </td>
                                     <td className={cn("p-4 font-black text-slate-900 transition-all duration-300", isWideView && "border-l border-slate-100/50")}>{item.keyword}</td>
                                     
                                     {/* نية البحث */}
@@ -452,6 +590,101 @@ export function KeywordsDatabase({
                                 <button
                                     type="button"
                                     onClick={() => setShowAddKeywordModal(false)}
+                                    className="py-3 px-6 rounded-2xl border border-zinc-200 text-zinc-500 hover:text-black hover:bg-zinc-50 font-bold text-xs transition-all"
+                                >
+                                    إلغاء
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* مودال الترحيل والاستهداف الجماعي */}
+            {showBulkTargetModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/65 p-4 animate-in duration-250">
+                    <div className="bg-white border border-slate-100 rounded-[32px] w-full max-w-md p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+                        <div className="mb-6">
+                            <h3 className="text-xl font-black text-slate-900">الترحيل والاستهداف الجماعي</h3>
+                            <p className="text-[10px] text-slate-400 font-bold mt-1">ترحيل {selectedIds.length} كلمات مفتاحية دفعة واحدة إلى قائمة الكلمات النشطة للعميل</p>
+                        </div>
+
+                        <form onSubmit={handleBulkTargetSubmit} className="space-y-4">
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-black text-slate-600">العميل المستهدف بالتصدير</label>
+                                <select 
+                                    value={bulkClientId}
+                                    onChange={(e) => setBulkClientId(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-200/80 rounded-2xl py-3 px-4 text-xs font-bold outline-none focus:border-black focus:bg-white text-slate-800 transition-all"
+                                >
+                                    {clients.map(client => (
+                                        <option key={client.id} value={client.id}>{client.name} ({client.website})</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-black text-slate-600">الموقع المستهدف بالموقع (Location)</label>
+                                <input 
+                                    type="text" 
+                                    required
+                                    placeholder="مثال: الصفحة الرئيسية أو /products/coffee-beans"
+                                    value={bulkLocation}
+                                    onChange={(e) => setBulkLocation(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-200/80 rounded-2xl py-3 px-4 text-xs font-bold outline-none focus:border-black focus:bg-white text-slate-800 transition-all"
+                                />
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-black text-slate-600">الحالة الأولية</label>
+                                <select 
+                                    value={bulkStatus}
+                                    onChange={(e) => setBulkStatus(e.target.value as any)}
+                                    className="w-full bg-slate-50 border border-slate-200/80 rounded-2xl py-3 px-4 text-xs font-bold outline-none focus:border-black focus:bg-white text-slate-800 transition-all"
+                                >
+                                    <option value="review">قيد المراجعة (Review)</option>
+                                    <option value="used">تم الاستخدام (Used)</option>
+                                    <option value="changed">تم التعديل (Changed)</option>
+                                </select>
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-black text-slate-600">مؤقت المراجعة القادمة (أيام)</label>
+                                <input 
+                                    type="number" 
+                                    required
+                                    min="1"
+                                    max="365"
+                                    value={bulkReviewDays}
+                                    onChange={(e) => setBulkReviewDays(Number(e.target.value))}
+                                    className="w-full bg-slate-50 border border-slate-200/80 rounded-2xl py-3 px-4 text-xs font-bold outline-none focus:border-black focus:bg-white text-slate-800 transition-all font-mono"
+                                />
+                            </div>
+
+                            <div className="flex items-center gap-2 py-2">
+                                <input 
+                                    type="checkbox"
+                                    id="delete-suggestions-checkbox"
+                                    checked={shouldDeleteAfterBulk}
+                                    onChange={(e) => setShouldDeleteAfterBulk(e.target.checked)}
+                                    className="w-4 h-4 rounded border-slate-300 text-zinc-950 focus:ring-zinc-950 cursor-pointer"
+                                />
+                                <label htmlFor="delete-suggestions-checkbox" className="text-xs font-bold text-slate-700 cursor-pointer select-none">
+                                    حذف الأفكار من قاعدة المقترحات بعد ترحيلها بنجاح
+                                </label>
+                            </div>
+
+                            <div className="flex items-center gap-3 pt-4">
+                                <button
+                                    type="submit"
+                                    disabled={isBulkSubmitting}
+                                    className="flex-1 py-3 px-6 rounded-2xl bg-black hover:bg-zinc-800 text-white font-bold text-xs transition-all shadow-sm disabled:bg-zinc-500"
+                                >
+                                    {isBulkSubmitting ? 'جاري ترحيل الكلمات...' : `تصدير واستهداف الكلمات (${selectedIds.length})`}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowBulkTargetModal(false)}
                                     className="py-3 px-6 rounded-2xl border border-zinc-200 text-zinc-500 hover:text-black hover:bg-zinc-50 font-bold text-xs transition-all"
                                 >
                                     إلغاء

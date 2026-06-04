@@ -17,6 +17,29 @@ import { ColumnConfig } from '../types/index';
   if ((window as any).__semrushSmartCopierLoaded) return;
   (window as any).__semrushSmartCopierLoaded = true;
 
+  // ── Helper to proxy fetch requests through the background script (bypasses CSP & CORS) ──
+  async function fetchFromBackground(url: string, options: any = {}): Promise<any> {
+    return new Promise((resolve, reject) => {
+      chrome.runtime.sendMessage({ type: 'FETCH_API', url, options }, (response) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
+        }
+        if (response && response.success) {
+          const { result } = response;
+          resolve({
+            ok: result.ok,
+            status: result.status,
+            json: async () => result.data,
+            text: async () => typeof result.data === 'string' ? result.data : JSON.stringify(result.data)
+          });
+        } else {
+          reject(new Error(response?.error || 'Failed to fetch from background worker'));
+        }
+      });
+    });
+  }
+
   // ══════════════════════════════════════
   //  TOAST NOTIFICATIONS
   // ══════════════════════════════════════
@@ -169,7 +192,7 @@ import { ColumnConfig } from '../types/index';
 
         const volumeKey = headers.find(h => {
           const hLower = h.toLowerCase();
-          return hLower === 'volume' || hLower.includes('حجم') || hLower.includes('search volume');
+          return hLower.includes('volume') || hLower.includes('حجم');
         });
 
         const intentKey = headers.find(h => {
@@ -264,7 +287,7 @@ import { ColumnConfig } from '../types/index';
         loadingToast.remove();
         const syncToast = showToast(`جاري مزامنة ${keywordList.length} كلمة مع العميل المحدد... ◆`, 'loading', 0);
 
-        const res = await fetch('http://localhost:3000/api/seo/sync-keywords', {
+        const res = await fetchFromBackground('http://localhost:3000/api/seo/sync-keywords', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -384,7 +407,7 @@ import { ColumnConfig } from '../types/index';
       }
 
       // Fetch POST to Next.js Local Server
-      const res = await fetch('http://localhost:3000/api/leads/sync-plugin', {
+      const res = await fetchFromBackground('http://localhost:3000/api/leads/sync-plugin', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -413,6 +436,238 @@ import { ColumnConfig } from '../types/index';
   }
 
   // ══════════════════════════════════════
+  //  KEYWORDS CHECK & TABLE BADGES INJECTION
+  // ══════════════════════════════════════
+  let clientKeywordsMap: Record<string, 'targeted' | 'suggested'> = {};
+  let observer: MutationObserver | null = null;
+  let updateDebounceTimer: any = null;
+
+  async function fetchClientKeywords() {
+    if (!selectedClientId) {
+      clientKeywordsMap = {};
+      updateTableBadges();
+      return;
+    }
+    try {
+      const res = await fetchFromBackground(`http://localhost:3000/api/seo/quick-check?client_id=${selectedClientId}`);
+      const data = await res.json();
+      if (res.ok && data.success) {
+        clientKeywordsMap = data.keywords || {};
+      } else {
+        clientKeywordsMap = {};
+      }
+    } catch (e) {
+      console.error('[Naqeeb Smart Copier] Failed to fetch client keywords map:', e);
+      clientKeywordsMap = {};
+    }
+    updateTableBadges();
+  }
+
+  function updateTableBadges() {
+    // Prevent infinite observer loops by disconnecting first
+    if (observer) observer.disconnect();
+
+    try {
+      // 1. Remove existing badges to avoid duplicates
+      document.querySelectorAll('.sc-table-badge, .sc-table-add-btn').forEach(el => el.remove());
+
+      // 2. If not in keywords mode, or no client selected, do nothing
+      if (syncMode !== 'keywords' || !selectedClientId) return;
+
+      const table = detectTable();
+      if (!table) return;
+
+      const headers = getTableHeaders(table);
+      if (!headers.length) return;
+
+      // 3. Find keyword column index
+      const keywordIndex = headers.findIndex(h => {
+        const hLower = h.toLowerCase();
+        return hLower === 'keyword' || hLower === 'keywords' || hLower.includes('الكلمة') || hLower.includes('الكلمات') || hLower === 'query';
+      });
+
+      if (keywordIndex === -1) return;
+
+      // 4. Iterate over rows to inject status badges
+      const rows = table.querySelectorAll('tbody tr, [role="row"]');
+      rows.forEach(row => {
+        if (row.querySelector('th, [role="columnheader"]')) return; // skip headers
+
+        const cells = row.querySelectorAll('td, [role="gridcell"], [role="cell"]');
+        const keywordCell = cells[keywordIndex] as HTMLElement;
+        if (!keywordCell) return;
+
+        // Clean cell content to extract clean keyword text
+        const tempCell = keywordCell.cloneNode(true) as HTMLElement;
+        tempCell.querySelectorAll('.sc-table-badge, .sc-table-add-btn, button, svg').forEach(el => el.remove());
+        const keywordText = tempCell.textContent?.trim().toLowerCase().replace(/\s+/g, ' ') || '';
+
+        if (!keywordText || keywordText.length < 2) return;
+
+        const status = clientKeywordsMap[keywordText];
+
+        // Ensure we don't double inject
+        if (keywordCell.querySelector('.sc-table-badge, .sc-table-add-btn')) return;
+
+        if (status === 'targeted') {
+          const badge = document.createElement('span');
+          badge.className = 'sc-table-badge targeted';
+          badge.textContent = 'مستهدفة 🟢';
+          badge.title = 'هذه الكلمة مستهدفة نشطة في خطة هذا العميل';
+          keywordCell.appendChild(badge);
+        } else if (status === 'suggested') {
+          const badge = document.createElement('span');
+          badge.className = 'sc-table-badge suggested';
+          badge.textContent = 'مقترحة 🟡';
+          badge.title = 'هذه الكلمة مضافة مسبقاً في قاعدة الكلمات المقترحة للعميل';
+          keywordCell.appendChild(badge);
+        } else {
+          // New opportunity: add button (+)
+          const addBtn = document.createElement('button');
+          addBtn.className = 'sc-table-add-btn';
+          addBtn.textContent = '+';
+          addBtn.title = 'إضافة سريعة لقاعدة الكلمات المقترحة للعميل';
+          
+          addBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+
+            addBtn.disabled = true;
+            addBtn.textContent = '⏳';
+
+            // Gather other fields from the row
+            let kdVal = 0;
+            let volVal = 0;
+            let intentVal = '';
+            let cpcVal = 0.0;
+            let sfVal = '';
+
+            const kdIndex = headers.findIndex(h => {
+              const hLower = h.toLowerCase();
+              return hLower === 'kd' || hLower.includes('difficulty') || hLower.includes('صعوبة');
+            });
+            const volIndex = headers.findIndex(h => {
+              const hLower = h.toLowerCase();
+              return hLower.includes('volume') || hLower.includes('حجم');
+            });
+            const intentIndex = headers.findIndex(h => {
+              const hLower = h.toLowerCase();
+              return hLower === 'intent' || hLower.includes('نية') || hLower.includes('قصد');
+            });
+            const cpcIndex = headers.findIndex(h => {
+              const hLower = h.toLowerCase();
+              return hLower === 'cpc' || hLower.includes('cpc') || hLower.includes('سعر النقرة') || hLower.includes('تكلفة');
+            });
+            const sfIndex = headers.findIndex(h => {
+              const hLower = h.toLowerCase();
+              return hLower === 'sf' || hLower === 'serp features' || hLower.includes('ميزات') || hLower.includes('ميزة');
+            });
+
+            if (kdIndex !== -1 && cells[kdIndex]) {
+              kdVal = parseInt(cells[kdIndex].textContent?.replace(/[^0-9]/g, '') || '') || 0;
+            }
+            if (volIndex !== -1 && cells[volIndex]) {
+              volVal = parseVolume(cells[volIndex].textContent || '');
+            }
+            if (intentIndex !== -1 && cells[intentIndex]) {
+              intentVal = cells[intentIndex].textContent?.trim() || '';
+            }
+            if (cpcIndex !== -1 && cells[cpcIndex]) {
+              cpcVal = parseFloat(cells[cpcIndex].textContent?.replace(/[^0-9.]/g, '') || '') || 0.0;
+            }
+            if (sfIndex !== -1 && cells[sfIndex]) {
+              sfVal = cells[sfIndex].textContent?.trim() || '';
+            }
+
+            const currentPlatform = window.location.hostname.includes('ahrefs') ? 'ahrefs' : 'semrush';
+            
+            let detectedSourceSite = '';
+            try {
+              const urlParams = new URLSearchParams(window.location.search);
+              detectedSourceSite = urlParams.get('q') || urlParams.get('query') || urlParams.get('target') || '';
+              if (!detectedSourceSite) {
+                const pathParts = window.location.pathname.split('/');
+                const domainPart = pathParts.find(p => p.includes('.') && p.length > 3 && !p.endsWith('html'));
+                if (domainPart) detectedSourceSite = domainPart;
+              }
+            } catch (err) {}
+
+            try {
+              const res = await fetchFromBackground('http://localhost:3000/api/seo/sync-keywords', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  client_id: selectedClientId,
+                  keywords: [{
+                    keyword: tempCell.textContent?.trim() || '',
+                    kd: kdVal,
+                    volume: volVal,
+                    platform: currentPlatform,
+                    source_site: detectedSourceSite,
+                    intent: intentVal,
+                    cpc: cpcVal,
+                    sf: sfVal
+                  }]
+                })
+              });
+
+              const resData = await res.json();
+              if (res.ok && resData.success) {
+                showToast(`تم حفظ الكلمة المفتاحية للعميل! 🚀`, 'success');
+                clientKeywordsMap[keywordText] = 'suggested';
+                addBtn.remove();
+
+                const badge = document.createElement('span');
+                badge.className = 'sc-table-badge suggested';
+                badge.textContent = 'مقترحة 🟡';
+                badge.title = 'هذه الكلمة مضافة مسبقاً في قاعدة الكلمات المقترحة للعميل';
+                keywordCell.appendChild(badge);
+              } else {
+                showToast(`فشلت الإضافة: ${resData.error || 'خطأ غير معروف'}`, 'error');
+                addBtn.disabled = false;
+                addBtn.textContent = '+';
+              }
+            } catch (err) {
+              showToast('خطأ في الاتصال بالسيرفر لإتمام الحفظ السريع.', 'error');
+              addBtn.disabled = false;
+              addBtn.textContent = '+';
+            }
+          });
+          keywordCell.appendChild(addBtn);
+        }
+      });
+    } finally {
+      // Reconnect observer
+      if (observer) {
+        observer.observe(document.body, { childList: true, subtree: true });
+      }
+    }
+  }
+
+  function initObserver() {
+    if (observer) {
+      observer.disconnect();
+      observer = null;
+    }
+
+    observer = new MutationObserver((mutations) => {
+      let shouldUpdate = false;
+      for (const mutation of mutations) {
+        if (mutation.addedNodes.length > 0) {
+          shouldUpdate = true;
+          break;
+        }
+      }
+      if (shouldUpdate) {
+        clearTimeout(updateDebounceTimer);
+        updateDebounceTimer = setTimeout(updateTableBadges, 300);
+      }
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
+
+  // ══════════════════════════════════════
   //  COLUMN SELECTOR PANEL
   // ══════════════════════════════════════
   let panelOpen = false;
@@ -427,7 +682,7 @@ import { ColumnConfig } from '../types/index';
   async function loadClientsInSelect(selectEl: HTMLSelectElement) {
     if (!selectEl) return;
     try {
-      const res = await fetch('http://localhost:3000/api/seo/clients');
+      const res = await fetchFromBackground('http://localhost:3000/api/seo/clients');
       const data = await res.json();
       if (res.ok && data.success) {
         clients = data.clients || [];
@@ -447,6 +702,7 @@ import { ColumnConfig } from '../types/index';
           selectedClientId = clients[0].id;
           localStorage.setItem('sc_selected_client_id', selectedClientId);
         }
+        fetchClientKeywords();
       } else {
         selectEl.innerHTML = '<option value="">❌ تعذر تحميل العملاء</option>';
       }
@@ -547,10 +803,12 @@ import { ColumnConfig } from '../types/index';
         if (syncMode === 'leads') {
           leadsFields.style.display = 'flex';
           keywordsFields.style.display = 'none';
+          updateTableBadges();
         } else {
           leadsFields.style.display = 'none';
           keywordsFields.style.display = 'flex';
           loadClientsInSelect(clientSelect);
+          fetchClientKeywords();
         }
       });
     }
@@ -563,6 +821,7 @@ import { ColumnConfig } from '../types/index';
       clientSelect.addEventListener('change', () => {
         selectedClientId = clientSelect.value;
         localStorage.setItem('sc_selected_client_id', selectedClientId);
+        fetchClientKeywords();
       });
     }
 
@@ -688,9 +947,19 @@ import { ColumnConfig } from '../types/index';
 
   function init() {
     if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', createUI);
+      document.addEventListener('DOMContentLoaded', () => {
+        createUI();
+        if (syncMode === 'keywords') {
+          fetchClientKeywords();
+        }
+        initObserver();
+      });
     } else {
       createUI();
+      if (syncMode === 'keywords') {
+        fetchClientKeywords();
+      }
+      initObserver();
     }
   }
 

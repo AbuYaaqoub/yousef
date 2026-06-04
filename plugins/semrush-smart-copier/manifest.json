@@ -3,6 +3,9 @@
   "name": "Naqeeb Smart Copier ◆",
   "version": "1.0.0",
   "description": "نسخ ومزامنة جداول SEMrush و Ahrefs مباشرة إلى قاعدة بيانات نقيب أو Excel بنقرة واحدة",
+  "background": {
+    "service_worker": "background.js"
+  },
   "permissions": [
     "clipboardWrite",
     "activeTab",

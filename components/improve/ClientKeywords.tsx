@@ -31,6 +31,7 @@ interface ClientKeywordsProps {
     selectedClient: Client;
     clients: Client[];
     clientKeywords: ClientKeyword[];
+    keywordsDB?: any[];
     usingFallback: boolean;
     onAddClientKeyword: (
         clientId: string,
@@ -58,6 +59,7 @@ export function ClientKeywords({
     selectedClient,
     clients = [],
     clientKeywords,
+    keywordsDB = [],
     usingFallback,
     onAddClientKeyword,
     onUpdateStatus,
@@ -69,6 +71,9 @@ export function ClientKeywords({
     const [showAddClientKeywordModal, setShowAddClientKeywordModal] = useState(false);
     const [targetClientId, setTargetClientId] = useState(selectedClient.id);
     const [successMessage, setSuccessMessage] = useState('');
+    const [selectedDbKeywordId, setSelectedDbKeywordId] = useState('');
+    
+    const availableDbKeywords = (keywordsDB || []).filter(item => item.client_id === targetClientId);
 
     const [newClientKeywordText, setNewClientKeywordText] = useState('');
     const [newClientKeywordLocation, setNewClientKeywordLocation] = useState('الصفحة الرئيسية');
@@ -130,6 +135,7 @@ export function ClientKeywords({
                     setNewClientKeywordIntent('');
                     setNewClientKeywordCPC(0.0);
                     setNewClientKeywordSF('');
+                    setSelectedDbKeywordId('');
                     setSuccessMessage('');
                     setShowAddClientKeywordModal(false);
                 }, 1500);
@@ -145,6 +151,7 @@ export function ClientKeywords({
                 setNewClientKeywordIntent('');
                 setNewClientKeywordCPC(0.0);
                 setNewClientKeywordSF('');
+                setSelectedDbKeywordId('');
                 setShowAddClientKeywordModal(false);
             }
         } catch (err) {
@@ -389,6 +396,40 @@ export function ClientKeywords({
                         )}
 
                         <form onSubmit={handleAddSubmit} className="space-y-4">
+                            {availableDbKeywords.length > 0 && (
+                                <div className="space-y-1.5 p-3.5 bg-slate-50 border border-slate-100 rounded-2xl mb-2">
+                                    <label className="text-[10px] font-black text-slate-600 block">
+                                        ⚡ استيراد وتعبئة من قاعدة الكلمات المقترحة للعميل
+                                    </label>
+                                    <select
+                                        value={selectedDbKeywordId}
+                                        onChange={(e) => {
+                                            const id = e.target.value;
+                                            setSelectedDbKeywordId(id);
+                                            const matched = availableDbKeywords.find(k => k.id === id);
+                                            if (matched) {
+                                                setNewClientKeywordText(matched.keyword);
+                                                setNewClientKeywordIntent(matched.intent || '');
+                                                setNewClientKeywordKD(matched.kd || 0);
+                                                setNewClientKeywordVolume(matched.volume || 0);
+                                                setNewClientKeywordPlatform(matched.platform || 'ahrefs');
+                                                setNewClientKeywordSourceSite(matched.source_site || '');
+                                                setNewClientKeywordCPC(matched.cpc || 0.0);
+                                                setNewClientKeywordSF(matched.sf || '');
+                                            }
+                                        }}
+                                        className="w-full bg-white border border-slate-200/80 rounded-xl py-2 px-3 text-xs font-bold outline-none focus:border-black text-slate-800 transition-all cursor-pointer"
+                                    >
+                                        <option value="">-- اختر كلمة لتعبئة البيانات تلقائياً --</option>
+                                        {availableDbKeywords.map(k => (
+                                            <option key={k.id} value={k.id}>
+                                                {k.keyword} (حجم: {k.volume} | صعوبة: {k.kd}%)
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+
                             <div className="space-y-1.5">
                                 <label className="text-[10px] font-black text-slate-600">العميل المستهدف</label>
                                 <select 
@@ -562,7 +603,10 @@ export function ClientKeywords({
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => setShowAddClientKeywordModal(false)}
+                                    onClick={() => {
+                                        setSelectedDbKeywordId('');
+                                        setShowAddClientKeywordModal(false);
+                                    }}
                                     className="py-3 px-6 rounded-2xl border border-zinc-200 text-zinc-500 hover:text-black hover:bg-zinc-50 font-bold text-xs transition-all"
                                 >
                                     إلغاء
