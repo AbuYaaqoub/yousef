@@ -94,3 +94,79 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 }
+
+export async function DELETE(req: NextRequest) {
+    try {
+        const body = await req.json();
+        const { ids } = body;
+
+        if (!ids || !Array.isArray(ids) || ids.length === 0) {
+            return NextResponse.json({ success: false, error: 'يجب توفير مصفوفة معرفات صالحة' }, { status: 400 });
+        }
+
+        const { error } = await supabase
+            .from('leads')
+            .delete()
+            .in('id', ids);
+
+        if (error) throw error;
+
+        return NextResponse.json({ success: true, message: 'تم حذف المتاجر بنجاح' });
+    } catch (error: any) {
+        console.error('❌ DELETE Leads API Error:', error);
+        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    }
+}
+
+export async function PATCH(req: NextRequest) {
+    try {
+        const body = await req.json();
+        const { ids, category } = body;
+
+        if (!ids || !Array.isArray(ids) || ids.length === 0) {
+            return NextResponse.json({ success: false, error: 'يجب توفير مصفوفة معرفات صالحة' }, { status: 400 });
+        }
+
+        if (!category) {
+            return NextResponse.json({ success: false, error: 'يجب تحديد التصنيف المستهدف للنقل' }, { status: 400 });
+        }
+
+        // 1. جلب عناوين URL للمتاجر المستهدفة
+        const { data: targetLeads, error: fetchError } = await supabase
+            .from('leads')
+            .select('id, store_url')
+            .in('id', ids);
+
+        if (fetchError) throw fetchError;
+        if (!targetLeads || targetLeads.length === 0) {
+            return NextResponse.json({ success: false, error: 'لم يتم العثور على المتاجر المحددة' }, { status: 404 });
+        }
+
+        const urls = targetLeads.map(l => l.store_url);
+
+        // 2. حذف المتاجر المكررة مسبقاً في التصنيف المستهدف لتجنب تعارض القيد الفريد (unique_store_url_category)
+        // مع استثناء المعرفات الحالية التي يتم تحديثها إذا كانت تنتمي بالفعل للتصنيف المستهدف
+        const { error: deleteError } = await supabase
+            .from('leads')
+            .delete()
+            .in('store_url', urls)
+            .eq('category', category)
+            .not('id', 'in', `(${ids.join(',')})`);
+
+        if (deleteError) throw deleteError;
+
+        // 3. تحديث التصنيف للمتاجر المستهدفة
+        const { error: updateError } = await supabase
+            .from('leads')
+            .update({ category })
+            .in('id', ids);
+
+        if (updateError) throw updateError;
+
+        return NextResponse.json({ success: true, message: 'تم نقل المتاجر بنجاح' });
+    } catch (error: any) {
+        console.error('❌ PATCH Leads API Error:', error);
+        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    }
+}
+

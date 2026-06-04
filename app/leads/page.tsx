@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { Store, Mail, Phone, ExternalLink, Search, Filter, Loader2, Sparkles, AlertCircle, Layers } from 'lucide-react';
+import { Store, Mail, Phone, ExternalLink, Search, Filter, Loader2, Sparkles, AlertCircle, Layers, Trash2, FolderInput, FolderX, ChevronDown, X } from 'lucide-react';
 import { StatCard } from '@/components/ui/StatCard';
 import { ActionButton } from '@/components/ui/ActionButton';
 import { SocialIcon } from '@/components/ui/SocialIcon';
@@ -47,6 +47,10 @@ export default function LeadsPage() {
     const [loading, setLoading] = useState(true);
     const [exporting, setExporting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
+    const [showBulkMoveDropdown, setShowBulkMoveDropdown] = useState(false);
+    const [activeDropdownId, setActiveDropdownId] = useState<string | null>(null);
+    const [deleteConfirmIds, setDeleteConfirmIds] = useState<string[] | null>(null);
 
     // Fetch categories on mount
     useEffect(() => {
@@ -68,6 +72,7 @@ export default function LeadsPage() {
     const fetchLeads = useCallback(async () => {
         setLoading(true);
         setError(null);
+        setSelectedIds([]);
         try {
             const params = new URLSearchParams();
             if (searchQuery) params.append('search', searchQuery);
@@ -116,6 +121,76 @@ export default function LeadsPage() {
             console.error('Export Error:', err);
         } finally {
             setExporting(false);
+        }
+    };
+
+    const handleSelectAll = (checked: boolean) => {
+        if (checked) {
+            setSelectedIds(leads.map(l => l.id));
+        } else {
+            setSelectedIds([]);
+        }
+    };
+
+    const handleSelectLead = (leadId: string, checked: boolean) => {
+        if (checked) {
+            setSelectedIds(prev => [...prev, leadId]);
+        } else {
+            setSelectedIds(prev => prev.filter(id => id !== leadId));
+        }
+    };
+
+    const handleDeleteLeads = async (idsToDelete: string[]) => {
+        try {
+            setError(null);
+            const res = await fetch('/api/leads', {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ ids: idsToDelete }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setLeads(prevLeads => prevLeads.filter(lead => !idsToDelete.includes(lead.id)));
+                setSelectedIds(prevSelected => prevSelected.filter(id => !idsToDelete.includes(id)));
+                fetchLeads();
+            } else {
+                setError(data.error || 'حدث خطأ أثناء حذف المتاجر');
+            }
+        } catch (err) {
+            console.error('Delete Leads Error:', err);
+            setError('فشل في الاتصال بالخادم لحذف البيانات');
+        }
+    };
+
+    const handleMoveLeads = async (idsToMove: string[], targetCategory: string) => {
+        try {
+            setError(null);
+            const res = await fetch('/api/leads', {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ ids: idsToMove, category: targetCategory }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setLeads(prevLeads =>
+                    prevLeads.map(lead =>
+                        idsToMove.includes(lead.id)
+                            ? { ...lead, category: targetCategory }
+                            : lead
+                    )
+                );
+                setSelectedIds(prevSelected => prevSelected.filter(id => !idsToMove.includes(id)));
+                fetchLeads();
+            } else {
+                setError(data.error || 'حدث خطأ أثناء نقل المتاجر');
+            }
+        } catch (err) {
+            console.error('Move Leads Error:', err);
+            setError('فشل في الاتصال بالخادم لنقل البيانات');
         }
     };
 
@@ -277,6 +352,14 @@ export default function LeadsPage() {
                     <table className="w-full min-w-[800px] text-right">
                         <thead className="bg-slate-50 border-b border-slate-100">
                             <tr className="text-slate-500 text-xs font-bold uppercase tracking-wider">
+                                <th className="p-4 w-12 text-center">
+                                    <input
+                                        type="checkbox"
+                                        checked={leads.length > 0 && selectedIds.length === leads.length}
+                                        onChange={(e) => handleSelectAll(e.target.checked)}
+                                        className="w-4 h-4 rounded border-slate-300 text-black focus:ring-black cursor-pointer"
+                                    />
+                                </th>
                                 <th className="p-4 text-right">المتجر / المنشأة</th>
                                 <th className="p-4 text-right">الموقع الرسمي</th>
                                 <th className="p-4 text-right">التصنيف والكلمة المفتاحية</th>
@@ -284,12 +367,13 @@ export default function LeadsPage() {
                                 <th className="p-4 text-right">سوشيال ميديا</th>
                                 <th className="p-4 text-right">قوة الرصاصة</th>
                                 <th className="p-4 text-center">المنصة</th>
+                                <th className="p-4 text-center w-28">الإجراءات</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                             {loading ? (
                                 <tr>
-                                    <td colSpan={7} className="p-12 text-center text-slate-400">
+                                    <td colSpan={9} className="p-12 text-center text-slate-400">
                                         <div className="flex flex-col items-center gap-3">
                                             <Loader2 className="animate-spin text-zinc-950" size={32} />
                                             <span className="text-sm font-medium text-slate-500">جاري تحميل البيانات الحية من Supabase...</span>
@@ -298,7 +382,7 @@ export default function LeadsPage() {
                                 </tr>
                             ) : leads.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="p-12 text-center text-slate-400">
+                                    <td colSpan={9} className="p-12 text-center text-slate-400">
                                         <div className="flex flex-col items-center gap-2">
                                             <Store className="text-slate-300" size={40} />
                                             <span className="text-sm font-bold text-slate-600">لا توجد سجلات مطابقة للبحث</span>
@@ -308,7 +392,18 @@ export default function LeadsPage() {
                                 </tr>
                             ) : (
                                 leads.map((lead) => (
-                                    <tr key={lead.id} className="hover:bg-slate-50 transition-colors">
+                                    <tr 
+                                        key={lead.id} 
+                                        className={`hover:bg-slate-50 transition-colors ${selectedIds.includes(lead.id) ? 'bg-indigo-50/40 hover:bg-indigo-50/60' : ''}`}
+                                    >
+                                        <td className="p-4 text-center">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedIds.includes(lead.id)}
+                                                onChange={(e) => handleSelectLead(lead.id, e.target.checked)}
+                                                className="w-4 h-4 rounded border-slate-300 text-black focus:ring-black cursor-pointer"
+                                            />
+                                        </td>
                                         {/* Store Name */}
                                         <td className="p-4">
                                             <div className="flex items-center gap-3">
@@ -410,6 +505,64 @@ export default function LeadsPage() {
                                                  lead.source === 'ahrefs_plugin' ? 'Ahrefs' : 'ويب/جوجل'}
                                             </span>
                                         </td>
+                                        
+                                        {/* Actions Column */}
+                                        <td className="p-4 text-center">
+                                            <div className="flex items-center justify-center gap-1.5">
+                                                {/* Move Button Dropdown */}
+                                                <div className="relative inline-block text-right">
+                                                    <button
+                                                        onClick={() => setActiveDropdownId(activeDropdownId === lead.id ? null : lead.id)}
+                                                        className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
+                                                        title="نقل إلى تصنيف آخر"
+                                                    >
+                                                        <FolderInput size={15} />
+                                                    </button>
+                                                    {activeDropdownId === lead.id && (
+                                                        <>
+                                                            <div className="fixed inset-0 z-10" onClick={() => setActiveDropdownId(null)} />
+                                                            <div className="absolute left-0 mt-2 w-48 rounded-xl bg-white border border-slate-200 shadow-xl z-20 py-1 text-right">
+                                                                <div className="px-3 py-1.5 text-xs font-bold text-slate-400 border-b border-slate-100">
+                                                                    نقل إلى تصنيف:
+                                                                </div>
+                                                                {categories.map((cat) => (
+                                                                    <button
+                                                                        key={cat}
+                                                                        onClick={() => {
+                                                                            handleMoveLeads([lead.id], cat);
+                                                                            setActiveDropdownId(null);
+                                                                        }}
+                                                                        className="w-full text-right px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-black transition-colors block cursor-pointer"
+                                                                    >
+                                                                        {cat}
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                </div>
+
+                                                {/* Remove from Category Button */}
+                                                {lead.category && lead.category !== 'عام' && (
+                                                    <button
+                                                        onClick={() => handleMoveLeads([lead.id], 'عام')}
+                                                        className="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors cursor-pointer"
+                                                        title="إزالة من التصنيف"
+                                                    >
+                                                        <FolderX size={15} />
+                                                    </button>
+                                                )}
+
+                                                {/* Delete Button */}
+                                                <button
+                                                    onClick={() => setDeleteConfirmIds([lead.id])}
+                                                    className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                                    title="حذف"
+                                                >
+                                                    <Trash2 size={15} />
+                                                </button>
+                                            </div>
+                                        </td>
                                     </tr>
                                 ))
                             )}
@@ -417,6 +570,113 @@ export default function LeadsPage() {
                     </table>
                 </div>
             </div>
+
+            {/* Bulk Actions Floating Bar */}
+            {selectedIds.length > 0 && (
+                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-slate-950 text-white rounded-2xl border border-slate-800 shadow-2xl py-3 px-5 flex items-center gap-4 animate-slideUp max-w-[90vw] md:max-w-2xl">
+                    <div className="flex items-center gap-2 pr-2 border-l border-slate-800 ml-2">
+                        <span className="w-5 h-5 rounded-full bg-indigo-600 flex items-center justify-center text-xs font-bold">
+                            {selectedIds.length}
+                        </span>
+                        <span className="text-xs font-semibold text-slate-300 whitespace-nowrap">
+                            متاجر محددة
+                        </span>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                        {/* Move Button Dropdown */}
+                        <div className="relative">
+                            <button
+                                onClick={() => setShowBulkMoveDropdown(!showBulkMoveDropdown)}
+                                className="flex items-center gap-1.5 py-1.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs transition-colors cursor-pointer"
+                            >
+                                <FolderInput size={14} />
+                                <span>نقل إلى...</span>
+                                <ChevronDown size={12} className={`transition-transform ${showBulkMoveDropdown ? 'rotate-180' : ''}`} />
+                            </button>
+                            
+                            {showBulkMoveDropdown && (
+                                <>
+                                    <div className="fixed inset-0 z-30" onClick={() => setShowBulkMoveDropdown(false)} />
+                                    <div className="absolute bottom-full mb-2 right-0 w-48 rounded-xl bg-slate-900 border border-slate-800 shadow-2xl z-40 py-1 text-right">
+                                        <div className="px-3 py-1.5 text-xs font-bold text-slate-500 border-b border-slate-800">
+                                            نقل المحدد إلى تصنيف:
+                                        </div>
+                                        {categories.map((cat) => (
+                                            <button
+                                                key={cat}
+                                                onClick={() => {
+                                                    handleMoveLeads(selectedIds, cat);
+                                                    setShowBulkMoveDropdown(false);
+                                                }}
+                                                className="w-full text-right px-4 py-2 text-xs font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-colors block cursor-pointer"
+                                            >
+                                                {cat}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </>
+                            )}
+                        </div>
+
+                        {/* Bulk Remove from Category Button */}
+                        <button
+                            onClick={() => handleMoveLeads(selectedIds, 'عام')}
+                            className="flex items-center gap-1.5 py-1.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs transition-colors cursor-pointer"
+                        >
+                            <FolderX size={14} />
+                            <span>إزالة من التصنيف</span>
+                        </button>
+
+                        {/* Delete Button */}
+                        <button
+                            onClick={() => setDeleteConfirmIds(selectedIds)}
+                            className="flex items-center gap-1.5 py-1.5 px-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs transition-colors cursor-pointer shadow-sm"
+                        >
+                            <Trash2 size={14} />
+                            <span>حذف المحدد</span>
+                        </button>
+                    </div>
+
+                    {/* Clear Selection Button */}
+                    <button
+                        onClick={() => setSelectedIds([])}
+                        className="p-1.5 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                        title="إلغاء التحديد"
+                    >
+                        <X size={16} />
+                    </button>
+                </div>
+            )}
+
+            {/* Confirm Delete Modal */}
+            {deleteConfirmIds && (
+                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn">
+                    <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full p-6 animate-scaleIn">
+                        <h3 className="text-lg font-bold text-slate-900 mb-2 text-right">تأكيد الحذف</h3>
+                        <p className="text-slate-500 text-sm mb-6 text-right">
+                            هل أنت متأكد من رغبتك في حذف {deleteConfirmIds.length === 1 ? 'هذا المتجر' : `${deleteConfirmIds.length} متاجر`}؟ لا يمكن التراجع عن هذا الإجراء.
+                        </p>
+                        <div className="flex items-center gap-3 justify-end">
+                            <button
+                                onClick={() => setDeleteConfirmIds(null)}
+                                className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+                            >
+                                إلغاء
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    await handleDeleteLeads(deleteConfirmIds);
+                                    setDeleteConfirmIds(null);
+                                }}
+                                className="px-4 py-2 text-sm font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition-colors shadow-sm cursor-pointer"
+                            >
+                                نعم، حذف
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
