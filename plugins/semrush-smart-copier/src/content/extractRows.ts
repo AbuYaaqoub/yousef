@@ -1,0 +1,231 @@
+// content/extractRows.ts
+// Extracts all visible rows from a detected table
+
+import { extractTooltipValue } from './extractTooltips';
+import { extractLink, extractAllLinks } from './extractLinks';
+import { TableRow } from '../types/index';
+
+export function extractRows(table: Element, headers: string[]): TableRow[] {
+  const rows: TableRow[] = [];
+
+  // Find all data rows (excluding header rows)
+  let dataRows = getDataRows(table);
+
+  for (const row of dataRows) {
+    if (!isRowVisible(row)) continue;
+
+    const cells = getCells(row);
+    if (cells.length === 0) continue;
+
+    const rowData: TableRow = {};
+
+    cells.forEach((cell, index) => {
+      const header = headers[index] || `Column${index + 1}`;
+      const value = extractCellValue(cell, header);
+      rowData[header] = value;
+    });
+
+    // Skip empty rows
+    const values = Object.values(rowData).filter(v => v.trim() !== '');
+    if (values.length > 0) {
+      rows.push(rowData);
+    }
+  }
+
+  return rows;
+}
+
+function getDataRows(table: Element): Element[] {
+  // For standard HTML table
+  const tbody = table.querySelector('tbody');
+  if (tbody) {
+    return Array.from(tbody.querySelectorAll('tr'));
+  }
+
+  // For role-based tables
+  const allRows = Array.from(table.querySelectorAll('[role="row"]'));
+  // Skip header row (first one usually)
+  return allRows.filter(row => {
+    const isHeader = row.querySelector('[role="columnheader"]') !== null;
+    return !isHeader;
+  });
+
+  // Fallback: all tr except first
+  const allTr = Array.from(table.querySelectorAll('tr'));
+  return allTr.slice(1);
+}
+
+function getCells(row: Element): Element[] {
+  // Standard td
+  const tds = row.querySelectorAll('td');
+  if (tds.length > 0) return Array.from(tds);
+
+  // Role-based
+  const gridcells = row.querySelectorAll('[role="gridcell"], [role="cell"]');
+  if (gridcells.length > 0) return Array.from(gridcells);
+
+  return [];
+}
+
+function isRowVisible(row: Element): boolean {
+  const style = window.getComputedStyle(row);
+  if (style.display === 'none' || style.visibility === 'hidden') return false;
+
+  // Check aria-hidden
+  if (row.getAttribute('aria-hidden') === 'true') return false;
+
+  return true;
+}
+
+function extractCellValue(cell: Element, headerName: string): string {
+  const headerLower = headerName.toLowerCase();
+
+  // For URL/link columns, extract the href
+  if (headerLower.includes('url') || headerLower.includes('link') || headerLower.includes('page')) {
+    const link = extractLink(cell);
+    return link.url || link.text;
+  }
+
+  // Try tooltip first for numeric columns
+  if (isNumericHeader(headerLower)) {
+    const tooltipValue = extractTooltipValue(cell);
+    if (tooltipValue) return tooltipValue;
+  }
+
+  // Special extraction for Intent column
+  if (headerLower.includes('intent') || headerLower.includes('نية') || headerLower.includes('قصد')) {
+    const intentValue = extractIntentValue(cell);
+    if (intentValue) return intentValue;
+  }
+
+  // Special extraction for SERP Features (SF) column
+  if (headerLower === 'sf' || headerLower === 'serp features' || headerLower.includes('ميزات') || headerLower.includes('ميزة')) {
+    const sfValue = extractSFValue(cell);
+    if (sfValue) return sfValue;
+  }
+
+  // Get display text
+  const displayText = getCellDisplayText(cell);
+
+  return displayText;
+}
+
+function extractIntentValue(cell: Element): string {
+  const intents: string[] = [];
+
+  const walk = (node: Node) => {
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      const el = node as Element;
+      const dataIntent = el.getAttribute('data-intent');
+      if (dataIntent) {
+        intents.push(dataIntent.trim());
+        return;
+      }
+      
+      const children = el.children;
+      if (children.length === 0) {
+        const text = (el.textContent || '').trim();
+        if (text === 'I' || text === 'N' || text === 'C' || text === 'T' ||
+            text === 'i' || text === 'n' || text === 'c' || text === 't') {
+          intents.push(text.toUpperCase());
+          return;
+        }
+      }
+    }
+    
+    for (let i = 0; i < node.childNodes.length; i++) {
+      walk(node.childNodes[i]);
+    }
+  };
+
+  walk(cell);
+
+  if (intents.length > 0) {
+    const uniqueIntents = Array.from(new Set(intents));
+    return uniqueIntents.join(' ');
+  }
+
+  // Check raw text content for patterns like "I", "I T", etc.
+  const rawText = (cell.textContent || '').trim();
+  const cleanRawText = rawText.replace(/\s+/g, ' ').trim();
+  const pattern = /^[INCT](\s+[INCT])*$/i;
+  if (pattern.test(cleanRawText)) {
+    return cleanRawText.toUpperCase();
+  }
+
+  // Look for full word triggers in case-insensitive text
+  const lowerRaw = rawText.toLowerCase();
+  const matchedFull: string[] = [];
+  if (lowerRaw.includes('informational')) matchedFull.push('I');
+  if (lowerRaw.includes('navigational')) matchedFull.push('N');
+  if (lowerRaw.includes('commercial')) matchedFull.push('C');
+  if (lowerRaw.includes('transactional')) matchedFull.push('T');
+  if (matchedFull.length > 0) {
+    return matchedFull.join(' ');
+  }
+
+  // Fallback to text nodes exact match
+  const textNodes: string[] = [];
+  const textWalk = (node: Node) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const text = (node.textContent || '').trim();
+      if (text === 'I' || text === 'N' || text === 'C' || text === 'T' ||
+          text === 'i' || text === 'n' || text === 'c' || text === 't') {
+        textNodes.push(text.toUpperCase());
+      }
+    } else {
+      for (let i = 0; i < node.childNodes.length; i++) {
+        textWalk(node.childNodes[i]);
+      }
+    }
+  };
+  textWalk(cell);
+  if (textNodes.length > 0) {
+    return Array.from(new Set(textNodes)).join(' ');
+  }
+
+  return '';
+}
+
+function extractSFValue(cell: Element): string {
+  const features: string[] = [];
+  
+  // Find all elements with title, aria-label, data-tooltip or tippy-content
+  const elements = cell.querySelectorAll('[title], [aria-label], [data-tooltip], [data-tippy-content]');
+  elements.forEach(el => {
+    const text = el.getAttribute('title') || 
+                 el.getAttribute('aria-label') || 
+                 el.getAttribute('data-tooltip') || 
+                 el.getAttribute('data-tippy-content') || '';
+    const clean = text.trim();
+    if (clean && !features.includes(clean)) {
+      features.push(clean);
+    }
+  });
+
+  if (features.length === 0) {
+    const text = (cell.textContent || '').trim();
+    if (text) return text;
+  }
+  
+  return features.join(', ');
+}
+
+function isNumericHeader(header: string): boolean {
+  const numericHeaders = ['volume', 'traffic', 'kd', 'position', 'cpc', 'density', '%', 'clicks'];
+  return numericHeaders.some(h => header.includes(h));
+}
+
+function getCellDisplayText(cell: Element): string {
+  // Remove button elements (sort, info icons)
+  const clone = cell.cloneNode(true) as Element;
+  clone.querySelectorAll('button, svg, [role="button"], .icon, [class*="icon"]').forEach(el => el.remove());
+
+  // Get text content
+  let text = (clone.textContent || '').trim();
+
+  // Normalize whitespace
+  text = text.replace(/\s+/g, ' ').trim();
+
+  return text;
+}

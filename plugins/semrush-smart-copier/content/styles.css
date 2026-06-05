@@ -1,0 +1,385 @@
+/* content/styles.css - Naqeeb Smart Copier Premium UI Styles ◆ */
+
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Outfit:wght@400;500;600;700&display=swap');
+
+:root {
+  --sc-bg: #ffffff;
+  --sc-surface: #fafafa;
+  --sc-surface2: #f3f4f6;
+  --sc-border: #e5e7eb;
+  --sc-border-dark: #000000;
+  --sc-accent: #000000;
+  --sc-accent-hover: #1f2937;
+  --sc-text: #000000;
+  --sc-text-dim: #6b7280;
+  --sc-success: #10b981;
+  --sc-error: #ef4444;
+  --sc-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  --sc-radius: 12px;
+  --sc-font: 'Cairo', 'Outfit', 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+/* ── Floating Dashboard Container ── */
+#semrush-smart-copier-root {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  z-index: 2147483647;
+  font-family: var(--sc-font);
+  font-size: 13px;
+  direction: rtl; /* RTL First */
+}
+
+/* ── Fab Buttons Row ── */
+#semrush-smart-copier-root > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 8px;
+  border-radius: 16px;
+  border: 1px solid var(--sc-border);
+  box-shadow: var(--sc-shadow);
+  backdrop-filter: blur(10px);
+}
+
+/* ── Primary Button: Sync & Enrich (مزامنة وإثراء) ── */
+.sc-sync-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background: var(--sc-accent);
+  border: 1px solid var(--sc-accent);
+  border-radius: var(--sc-radius);
+  color: #ffffff;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+  white-space: nowrap;
+}
+
+.sc-sync-btn:hover {
+  background: var(--sc-accent-hover);
+  border-color: var(--sc-accent-hover);
+  transform: translateY(-1.5px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.sc-sync-btn:active {
+  transform: translateY(0);
+}
+
+.sc-sync-icon {
+  font-size: 14px;
+  color: #ffffff;
+  font-weight: 900;
+  display: inline-block;
+  transform: scale(1.1);
+}
+
+.sc-sync-text {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+/* ── Secondary Button: Copy (نسخ الجدول) ── */
+.sc-fab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background: #ffffff;
+  border: 1px solid var(--sc-border-dark);
+  border-radius: var(--sc-radius);
+  color: var(--sc-text);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+  white-space: nowrap;
+}
+
+.sc-fab:hover {
+  background: var(--sc-surface);
+  transform: translateY(-1.5px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.sc-fab:active {
+  transform: translateY(0);
+}
+
+.sc-fab-icon {
+  width: 14px;
+  height: 14px;
+  fill: var(--sc-text);
+  flex-shrink: 0;
+}
+
+.sc-fab-text {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+.sc-fab-kbd {
+  font-size: 10px;
+  color: var(--sc-text-dim);
+  background: var(--sc-surface2);
+  border: 1px solid var(--sc-border);
+  border-radius: 6px;
+  padding: 1px 6px;
+  font-family: 'Outfit', monospace;
+  font-weight: 500;
+  margin-right: 4px;
+}
+
+/* ── Settings Toggle Button ── */
+.sc-settings-btn {
+  width: 38px;
+  height: 38px;
+  background: #ffffff;
+  border: 1px solid var(--sc-border);
+  border-radius: var(--sc-radius);
+  color: var(--sc-text-dim);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.sc-settings-btn:hover {
+  border-color: var(--sc-border-dark);
+  color: var(--sc-text);
+  background: var(--sc-surface);
+  transform: translateY(-1px);
+}
+
+.sc-settings-btn svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+/* ── Column Selector Panel ── */
+.sc-panel {
+  position: absolute;
+  bottom: calc(100% + 14px);
+  left: 0;
+  width: 250px;
+  background: #ffffff;
+  border: 1px solid var(--sc-border);
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  animation: sc-slide-up 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes sc-slide-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.sc-panel-header {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--sc-border);
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  color: var(--sc-text);
+  background: var(--sc-surface);
+  text-align: right;
+}
+
+.sc-column-list {
+  padding: 8px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.sc-column-list::-webkit-scrollbar {
+  width: 4px;
+}
+.sc-column-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sc-column-list::-webkit-scrollbar-thumb {
+  background: var(--sc-border);
+  border-radius: 999px;
+}
+
+.sc-col-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+  text-align: right;
+}
+
+.sc-col-item:hover {
+  background: var(--sc-surface2);
+}
+
+.sc-col-item input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--sc-border);
+  border-radius: 4px;
+  background: #ffffff;
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+
+.sc-col-item input[type="checkbox"]:checked {
+  background: var(--sc-accent);
+  border-color: var(--sc-accent);
+}
+
+.sc-col-item input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  left: 4.5px;
+  top: 1.5px;
+  width: 4px;
+  height: 7px;
+  border: 1.5px solid #fff;
+  border-top: none;
+  border-left: none;
+  transform: rotate(45deg);
+}
+
+.sc-col-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--sc-text);
+}
+
+/* ── Toast Notifications ── */
+.sc-toast {
+  position: fixed;
+  bottom: 100px;
+  right: 28px;
+  z-index: 2147483647;
+  padding: 12px 18px;
+  border-radius: var(--sc-radius);
+  font-family: var(--sc-font);
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+  animation: sc-toast-in 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+  background: #ffffff;
+  border: 1px solid var(--sc-border);
+}
+
+.sc-toast.success {
+  border-color: var(--sc-success);
+  color: var(--sc-success);
+}
+
+.sc-toast.error {
+  border-color: var(--sc-error);
+  color: var(--sc-error);
+}
+
+.sc-toast.loading {
+  border-color: var(--sc-border);
+  color: var(--sc-text-dim);
+}
+
+@keyframes sc-toast-in {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes sc-toast-out {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(20px); }
+}
+
+.sc-toast.fade-out {
+  animation: sc-toast-out 0.2s ease forwards;
+}
+
+/* ── Spinner ── */
+.sc-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--sc-surface2);
+  border-top-color: var(--sc-accent);
+  border-radius: 50%;
+  animation: sc-spin 0.6s linear infinite;
+}
+
+@keyframes sc-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Keywords In-Page Table Badges ── */
+.sc-table-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  margin: 0 6px;
+  user-select: none;
+  font-family: var(--sc-font);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  vertical-align: middle;
+}
+
+.sc-table-badge.targeted {
+  background-color: #ecfdf5 !important;
+  color: #059669 !important;
+  border: 1.5px solid #a7f3d0 !important;
+}
+
+.sc-table-badge.suggested {
+  background-color: #fffbeb !important;
+  color: #d97706 !important;
+  border: 1.5px solid #fde68a !important;
+}
+
+/* Interactive Add Icon for Opportunities */
+.sc-table-add-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  border: 1px solid var(--sc-border);
+  background: #ffffff;
+  color: var(--sc-text-dim);
+  cursor: pointer;
+  margin: 0 6px;
+  font-weight: bold;
+  font-size: 11px;
+  transition: all 0.2s;
+  vertical-align: middle;
+}
+
+.sc-table-add-btn:hover {
+  background: var(--sc-accent);
+  color: #ffffff;
+  border-color: var(--sc-accent);
+  transform: scale(1.1);
+}
+
