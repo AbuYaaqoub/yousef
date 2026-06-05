@@ -70,6 +70,8 @@ CREATE TABLE IF NOT EXISTS public.seo_keywords_database (
     volume INTEGER DEFAULT 0,
     platform TEXT NOT NULL, -- 'ahrefs', 'semrush', 'moz'
     source_site TEXT,
+    quotation_results INTEGER DEFAULT NULL,
+    allinurl_results INTEGER DEFAULT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -172,4 +174,11 @@ CREATE POLICY "Allow anonymous read access" ON public.custom_categories FOR SELE
 CREATE POLICY "Allow anonymous insert access" ON public.custom_categories FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow anonymous update access" ON public.custom_categories FOR UPDATE USING (true);
 CREATE POLICY "Allow anonymous delete access" ON public.custom_categories FOR DELETE USING (true);
+
+-- ==========================================
+-- تعديل هيكلية الجداول القائمة مسبقاً لإضافة أعمدة نتائج البحث المتقدم
+-- ==========================================
+ALTER TABLE public.seo_keywords_database ADD COLUMN IF NOT EXISTS quotation_results INTEGER DEFAULT NULL;
+ALTER TABLE public.seo_keywords_database ADD COLUMN IF NOT EXISTS allinurl_results INTEGER DEFAULT NULL;
+
 

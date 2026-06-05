@@ -34,6 +34,8 @@ interface KeywordDBItem {
     intent?: string;
     cpc?: number;
     sf?: string;
+    quotation_results?: number | null;
+    allinurl_results?: number | null;
     created_at?: string;
 }
 
@@ -257,7 +259,9 @@ export default function SEOClientManager() {
             source_site: source,
             intent: intent || '',
             cpc: cpc || 0.0,
-            sf: sf || ''
+            sf: sf || '',
+            quotation_results: null,
+            allinurl_results: null
         };
 
         if (usingFallback) {
@@ -276,6 +280,8 @@ export default function SEOClientManager() {
                         delete fallbackKeyword.intent;
                         delete fallbackKeyword.cpc;
                         delete fallbackKeyword.sf;
+                        delete fallbackKeyword.quotation_results;
+                        delete fallbackKeyword.allinurl_results;
                         
                         const { data: retryData, error: retryError } = await supabase.from('seo_keywords_database').insert([fallbackKeyword]).select();
                         if (retryError) throw retryError;
@@ -326,6 +332,61 @@ export default function SEOClientManager() {
             const { error } = await supabase.from('seo_keywords_database').delete().in('id', ids);
             if (error) throw error;
             setKeywordsDB(keywordsDB.filter(k => !ids.includes(k.id)));
+        }
+    };
+
+    const handleUpdateKeywordMetrics = async (
+        updates: { id: string; quotation_results: number | null; allinurl_results: number | null }[]
+    ) => {
+        if (!updates || updates.length === 0) return;
+
+        // 1. تحديث الحالة المحلية فوراً لتجربة مستخدم سريعة جداً
+        setKeywordsDB(prev => prev.map(k => {
+            const match = updates.find(u => u.id === k.id);
+            if (match) {
+                return {
+                    ...k,
+                    quotation_results: match.quotation_results,
+                    allinurl_results: match.allinurl_results
+                };
+            }
+            return k;
+        }));
+
+        // 2. تحديث التخزين المحلي الاحتياطي
+        const localKDB = JSON.parse(localStorage.getItem('seo_keywords_database') || '[]');
+        const updatedLocal = localKDB.map((k: any) => {
+            const match = updates.find(u => u.id === k.id);
+            if (match) {
+                return {
+                    ...k,
+                    quotation_results: match.quotation_results,
+                    allinurl_results: match.allinurl_results
+                };
+            }
+            return k;
+        });
+        localStorage.setItem('seo_keywords_database', JSON.stringify(updatedLocal));
+
+        // 3. تحديث قاعدة بيانات Supabase
+        if (!usingFallback) {
+            try {
+                await Promise.all(updates.map(async (update) => {
+                    const { error } = await supabase
+                        .from('seo_keywords_database')
+                        .update({
+                            quotation_results: update.quotation_results,
+                            allinurl_results: update.allinurl_results
+                        })
+                        .eq('id', update.id);
+                    
+                    if (error) {
+                        console.warn(`Supabase update failed for keyword ${update.id}:`, error.message);
+                    }
+                }));
+            } catch (err) {
+                console.error('Database update failed:', err);
+            }
         }
     };
 
@@ -786,6 +847,7 @@ export default function SEOClientManager() {
                                 onDeleteKeyword={handleDeleteKeyword}
                                 onDeleteKeywords={handleDeleteKeywords}
                                 onBulkTargetKeywords={handleBulkTargetKeywords}
+                                onUpdateKeywordMetrics={handleUpdateKeywordMetrics}
                                 onSwitchTab={() => setActiveSubTab('client_keywords')}
                                 isWideView={isWideView}
                             />

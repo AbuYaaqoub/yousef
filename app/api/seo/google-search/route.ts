@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
 
             const organic = indexResponse.data.organic || [];
             // في Serper، يمثل totalResults العدد التقريبي للصفحات المفرسة
-            const totalResults = indexResponse.data.searchParameters?.totalResults || organic.length;
+            const totalResults = indexResponse.data.searchInformation?.totalResults ?? indexResponse.data.searchParameters?.totalResults ?? organic.length;
 
             indexStats = {
                 total: totalResults,

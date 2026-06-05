@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Database, Plus, ArrowLeftRight, Search, Trash2 } from 'lucide-react';
+import { Database, Plus, ArrowLeftRight, Search, Trash2, Globe, ExternalLink, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Client {
@@ -21,6 +21,8 @@ interface KeywordDBItem {
     intent?: string;
     cpc?: number;
     sf?: string;
+    quotation_results?: number | null;
+    allinurl_results?: number | null;
 }
 
 interface KeywordsDatabaseProps {
@@ -49,6 +51,9 @@ interface KeywordsDatabaseProps {
         items: any[],
         shouldDeleteSuggestions: boolean
     ) => Promise<void>;
+    onUpdateKeywordMetrics: (
+        updates: { id: string; quotation_results: number | null; allinurl_results: number | null }[]
+    ) => Promise<void>;
     onSwitchTab: () => void;
     isWideView?: boolean;
 }
@@ -62,12 +67,14 @@ export function KeywordsDatabase({
     onDeleteKeyword,
     onDeleteKeywords,
     onBulkTargetKeywords,
+    onUpdateKeywordMetrics,
     onSwitchTab,
     isWideView = false
 }: KeywordsDatabaseProps) {
     const [searchQuery, setSearchQuery] = useState('');
     const [platformFilter, setPlatformFilter] = useState('all');
     const [kdFilter, setKdFilter] = useState('all');
+    const [testKeyword, setTestKeyword] = useState('');
 
     const [showAddKeywordModal, setShowAddKeywordModal] = useState(false);
     const [targetClientId, setTargetClientId] = useState(selectedClient.id);
@@ -87,6 +94,96 @@ export function KeywordsDatabase({
 
     // حالات التحديد الجماعي
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
+    const [scanningIds, setScanningIds] = useState<string[]>([]);
+
+    // حالة المسودات المؤقتة لنتائج الفحص غير المحفوظة
+    const [draftMetrics, setDraftMetrics] = useState<Record<string, { quotation_results: number | null, allinurl_results: number | null }>>({});
+
+    const handleScanMetrics = async (items: KeywordDBItem[]) => {
+        if (items.length === 0) return;
+        
+        // إضافة المعرفات لحالة التحميل
+        const idsToScan = items.map(item => item.id);
+        setScanningIds(prev => [...prev, ...idsToScan]);
+
+        try {
+            const res = await fetch('/api/seo/keyword-metrics', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    keywords: items.map(item => ({
+                        id: item.id,
+                        keyword: item.keyword
+                    }))
+                })
+            });
+
+            const data = await res.json();
+
+            if (!res.ok || !data.success) {
+                throw new Error(data.error || 'فشلت عملية جلب البيانات من محرك جوجل.');
+            }
+
+            if (data.results) {
+                // حفظ البيانات المسترجعة كمسودات مؤقتة فقط دون حفظها في قاعدة البيانات مباشرة
+                setDraftMetrics(prev => {
+                    const next = { ...prev };
+                    data.results.forEach((r: any) => {
+                        next[r.id] = {
+                            quotation_results: r.quotation_results,
+                            allinurl_results: r.allinurl_results
+                        };
+                    });
+                    return next;
+                });
+            }
+        } catch (err: any) {
+            console.error('Error scanning keyword metrics:', err);
+            alert(`حدث خطأ أثناء الفحص: ${err.message || 'يرجى التحقق من اتصال الشبكة ومفتاح Serper API'}`);
+        } finally {
+            setScanningIds(prev => prev.filter(id => !idsToScan.includes(id)));
+        }
+    };
+
+    // حفظ جميع المسودات المؤقتة في قاعدة البيانات والتخزين المحلي دفعة واحدة يدوياً
+    const handleSaveDraftMetrics = async () => {
+        const updates = Object.entries(draftMetrics).map(([id, val]) => ({
+            id,
+            quotation_results: val.quotation_results,
+            allinurl_results: val.allinurl_results
+        }));
+
+        if (updates.length === 0) return;
+
+        try {
+            setIsSubmitting(true);
+            await onUpdateKeywordMetrics(updates);
+            setDraftMetrics({});
+            alert('تم حفظ جميع نتائج الفحص بنجاح في قاعدة البيانات.');
+        } catch (err: any) {
+            console.error('Error saving draft metrics:', err);
+            alert(`حدث خطأ أثناء الحفظ: ${err.message || 'فشلت العملية'}`);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    // إلغاء المسودات المؤقتة والتراجع عن الفحص الحالي
+    const handleDiscardDraftMetrics = () => {
+        if (window.confirm('هل أنت متأكد من رغبتك في إلغاء نتائج الفحص الأخيرة وعدم حفظها؟')) {
+            setDraftMetrics({});
+        }
+    };
+
+    const formatResultsCount = (count: number | null | undefined) => {
+        if (count === null || count === undefined) return '-';
+        if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`;
+        if (count >= 1000) return `${(count / 1000).toFixed(1)}k`;
+        if (count === 10) return `${(10).toLocaleString('ar-EG')}+`;
+        return count.toLocaleString('ar-EG');
+    };
     
     // حالات مودال الترحيل الجماعي
     const [showBulkTargetModal, setShowBulkTargetModal] = useState(false);
@@ -101,6 +198,7 @@ export function KeywordsDatabase({
         setTargetClientId(selectedClient.id);
         setBulkClientId(selectedClient.id);
         setSelectedIds([]); // مسح التحديد عند تغيير العميل النشط
+        setDraftMetrics({}); // مسح نتائج الفحص المؤقتة للعميل السابق لضمان دقة البيانات وحمايتها
     }, [selectedClient]);
 
     // مسح التحديد إذا تغيرت نتائج البحث أو الفلاتر لضمان دقة الاختيار
@@ -278,6 +376,66 @@ export function KeywordsDatabase({
                     </div>
                 </div>
 
+                {/* مختبر الكلمات السيو السريع بقوقل */}
+                <div className="bg-slate-50/50 border border-slate-200/50 p-4 rounded-[20px] flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all">
+                    <div className="space-y-1">
+                        <h4 className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                            <span className="w-1.5 h-3 rounded-full bg-black inline-block" />
+                            <span>مختبر الكلمات السريع (Google Search)</span>
+                        </h4>
+                        <p className="text-[10px] text-slate-400 font-bold leading-normal">
+                            افحص أرشفة الكلمة بالتطابق التام أو مدى تواجدها بالروابط مباشرة في نتائج جوجل.
+                        </p>
+                    </div>
+                    
+                    <div className="flex-1 max-w-lg flex flex-col sm:flex-row items-stretch gap-2">
+                        <div className="relative flex-1">
+                            <input 
+                                type="text"
+                                placeholder="اكتب كلمة أو اخترها من الجدول..."
+                                value={testKeyword}
+                                onChange={(e) => setTestKeyword(e.target.value)}
+                                className="w-full bg-white border border-slate-200/80 rounded-xl py-2.5 pr-3 pl-16 text-xs font-bold outline-none focus:border-black transition-all text-slate-800 placeholder-slate-400"
+                            />
+                            {/* تعبئة سريعة في حال وجود كلمة محددة */}
+                            {selectedIds.length > 0 && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const selectedKeyword = keywordsDB.find(item => selectedIds.includes(item.id))?.keyword;
+                                        if (selectedKeyword) setTestKeyword(selectedKeyword);
+                                    }}
+                                    className="absolute left-2 top-1/2 -translate-y-1/2 text-[9px] font-black bg-zinc-950 text-white hover:bg-zinc-800 py-1.5 px-2 rounded-lg transition-all shadow-sm"
+                                    title="تعبئة الكلمة المحددة الأولى"
+                                >
+                                    تعبئة ⚡
+                                </button>
+                            )}
+                        </div>
+                        
+                        <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                                type="button"
+                                disabled={!testKeyword.trim()}
+                                onClick={() => window.open(`https://www.google.com/search?q="${encodeURIComponent(testKeyword.trim())}"`, '_blank')}
+                                className="flex-1 sm:flex-initial flex items-center justify-center gap-1 px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-zinc-800 hover:border-black hover:text-black hover:bg-slate-50 text-xs font-black transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <span className="text-[10px] font-black text-slate-500">""</span>
+                                <span>تطابق تام</span>
+                            </button>
+                            <button
+                                type="button"
+                                disabled={!testKeyword.trim()}
+                                onClick={() => window.open(`https://www.google.com/search?q=allinurl:"${encodeURIComponent(testKeyword.trim())}"`, '_blank')}
+                                className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-zinc-950 text-white hover:bg-zinc-800 text-xs font-black transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <Globe size={12} />
+                                <span>الرابط allinurl</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 {/* البحث والتصفية المتقدمة */}
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-3 pt-3 border-t border-slate-100">
                     <div className="md:col-span-6 relative">
@@ -328,6 +486,16 @@ export function KeywordsDatabase({
                     </div>
                     <div className="flex items-center gap-2 w-full sm:w-auto">
                         <button
+                            onClick={() => {
+                                const selectedItems = keywordsDB.filter(item => selectedIds.includes(item.id));
+                                handleScanMetrics(selectedItems);
+                            }}
+                            disabled={scanningIds.length > 0}
+                            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-xs transition-all border border-zinc-700/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            🔍 فحص نتائج Google
+                        </button>
+                        <button
                             onClick={() => setShowBulkTargetModal(true)}
                             className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-white text-zinc-950 hover:bg-zinc-100 font-black text-xs transition-all"
                         >
@@ -338,6 +506,37 @@ export function KeywordsDatabase({
                             className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-zinc-800 hover:bg-rose-950 hover:text-rose-200 text-zinc-300 font-bold text-xs transition-all border border-zinc-700/50"
                         >
                             🗑️ حذف جماعي
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* شريط حفظ نتائج الفحص يدويًا */}
+            {Object.keys(draftMetrics).length > 0 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-emerald-50 border border-emerald-200/80 text-emerald-900 rounded-2xl animate-in fade-in slide-in-from-top-4 duration-300 shadow-sm mb-4">
+                    <div className="flex items-center gap-3">
+                        <span className="relative flex h-2.5 w-2.5">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                        </span>
+                        <span className="text-xs font-black">
+                            يوجد {Object.keys(draftMetrics).length.toLocaleString('ar-EG')} من نتائج الفحص المؤقتة غير المحفوظة في قاعدة البيانات.
+                        </span>
+                    </div>
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <button
+                            onClick={handleSaveDraftMetrics}
+                            disabled={isSubmitting}
+                            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs transition-all shadow-sm disabled:opacity-50"
+                        >
+                            💾 حفظ التغييرات الآن
+                        </button>
+                        <button
+                            onClick={handleDiscardDraftMetrics}
+                            disabled={isSubmitting}
+                            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs transition-all disabled:opacity-50"
+                        >
+                            إلغاء التغييرات
                         </button>
                     </div>
                 </div>
@@ -360,6 +559,8 @@ export function KeywordsDatabase({
                             <th className={cn("p-4 text-center transition-all duration-300", isWideView ? "w-[10%] min-w-[90px] border-l border-slate-100/80" : "")}>نية البحث</th>
                             <th className={cn("p-4 text-center transition-all duration-300", isWideView ? "w-[10%] min-w-[90px] border-l border-slate-100/80" : "")}>الصعوبة KD</th>
                             <th className={cn("p-4 text-center transition-all duration-300", isWideView ? "w-[12%] min-w-[110px] border-l border-slate-100/80" : "")}>حجم البحث الشهري</th>
+                            <th className={cn("p-4 text-center transition-all duration-300", isWideView ? "w-[10%] min-w-[95px] border-l border-slate-100/80" : "")}>نتائج الاقتباس ""</th>
+                            <th className={cn("p-4 text-center transition-all duration-300", isWideView ? "w-[10%] min-w-[95px] border-l border-slate-100/80" : "")}>نتائج allinurl</th>
                             <th className={cn("p-4 text-center transition-all duration-300", isWideView ? "w-[10%] min-w-[90px] border-l border-slate-100/80" : "")}>CPC (نقرة)</th>
                             <th className={cn("p-4 text-center transition-all duration-300", isWideView ? "w-[12%] min-w-[110px] border-l border-slate-100/80" : "")}>ميزات البحث SF</th>
                             <th className={cn("p-4 text-center transition-all duration-300", isWideView ? "w-[10%] min-w-[90px] border-l border-slate-100/80" : "")}>المنصة المصدر</th>
@@ -370,7 +571,7 @@ export function KeywordsDatabase({
                     <tbody className="text-xs font-bold text-slate-700 divide-y divide-slate-100">
                         {filteredKeywordsDB.length === 0 ? (
                             <tr>
-                                <td colSpan={10} className="p-12 text-center text-slate-400">
+                                <td colSpan={12} className="p-12 text-center text-slate-400">
                                     <Database className="mx-auto mb-3 text-slate-300" size={24} />
                                     <span>لا توجد كلمات مفتاحية تطابق خيارات التصفية الحالية</span>
                                 </td>
@@ -412,6 +613,96 @@ export function KeywordsDatabase({
                                     </td>
                                     <td className={cn("p-4 text-center font-mono transition-all duration-300", isWideView && "border-l border-slate-100/50")}>{item.volume.toLocaleString('ar-EG')} عملية</td>
                                     
+                                    {/* نتائج الاقتباس "" */}
+                                    {(() => {
+                                        const draft = draftMetrics[item.id];
+                                        const hasDraft = draft !== undefined;
+                                        const val = hasDraft ? draft.quotation_results : item.quotation_results;
+                                        const isValValid = val !== undefined && val !== null;
+                                        return (
+                                            <td 
+                                                className={cn(
+                                                    "p-4 text-center font-mono transition-all duration-300", 
+                                                    isWideView && "border-l border-slate-100/50",
+                                                    hasDraft && "bg-emerald-50/40 text-emerald-700 font-extrabold"
+                                                )}
+                                                title={hasDraft && val !== null && val !== undefined ? `${val.toLocaleString('ar-EG')} (غير محفوظ)` : val?.toLocaleString('ar-EG') || ''}
+                                            >
+                                                {scanningIds.includes(item.id) ? (
+                                                    <RefreshCw size={12} className="animate-spin text-slate-400 mx-auto" />
+                                                ) : isValValid ? (
+                                                    <div className="flex items-center justify-center gap-1">
+                                                        <span className="flex items-center gap-1">
+                                                            {formatResultsCount(val)}
+                                                            {hasDraft && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" title="قيمة مؤقتة غير محفوظة" />}
+                                                        </span>
+                                                        <button
+                                                            onClick={() => handleScanMetrics([item])}
+                                                            className="p-1 rounded text-slate-300 hover:text-black hover:bg-slate-100 transition-colors"
+                                                            title="تحديث الفحص"
+                                                        >
+                                                            <RefreshCw size={10} />
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => handleScanMetrics([item])}
+                                                        className="p-1.5 rounded-lg text-slate-400 hover:text-black hover:bg-slate-100 transition-colors flex items-center gap-1 mx-auto"
+                                                        title="فحص نتائج البحث المتقدم"
+                                                    >
+                                                        <Search size={12} />
+                                                        <span className="text-[9px]">فحص</span>
+                                                    </button>
+                                                )}
+                                            </td>
+                                        );
+                                    })()}
+
+                                    {/* نتائج allinurl */}
+                                    {(() => {
+                                        const draft = draftMetrics[item.id];
+                                        const hasDraft = draft !== undefined;
+                                        const val = hasDraft ? draft.allinurl_results : item.allinurl_results;
+                                        const isValValid = val !== undefined && val !== null;
+                                        return (
+                                            <td 
+                                                className={cn(
+                                                    "p-4 text-center font-mono transition-all duration-300", 
+                                                    isWideView && "border-l border-slate-100/50",
+                                                    hasDraft && "bg-emerald-50/40 text-emerald-700 font-extrabold"
+                                                )}
+                                                title={hasDraft && val !== null && val !== undefined ? `${val.toLocaleString('ar-EG')} (غير محفوظ)` : val?.toLocaleString('ar-EG') || ''}
+                                            >
+                                                {scanningIds.includes(item.id) ? (
+                                                    <RefreshCw size={12} className="animate-spin text-slate-400 mx-auto" />
+                                                ) : isValValid ? (
+                                                    <div className="flex items-center justify-center gap-1">
+                                                        <span className="flex items-center gap-1">
+                                                            {formatResultsCount(val)}
+                                                            {hasDraft && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" title="قيمة مؤقتة غير محفوظة" />}
+                                                        </span>
+                                                        <button
+                                                            onClick={() => handleScanMetrics([item])}
+                                                            className="p-1 rounded text-slate-300 hover:text-black hover:bg-slate-100 transition-colors"
+                                                            title="تحديث الفحص"
+                                                        >
+                                                            <RefreshCw size={10} />
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => handleScanMetrics([item])}
+                                                        className="p-1.5 rounded-lg text-slate-400 hover:text-black hover:bg-slate-100 transition-colors flex items-center gap-1 mx-auto"
+                                                        title="فحص نتائج البحث المتقدم"
+                                                    >
+                                                        <Search size={12} />
+                                                        <span className="text-[9px]">فحص</span>
+                                                    </button>
+                                                )}
+                                            </td>
+                                        );
+                                    })()}
+
                                     {/* سعر النقرة CPC */}
                                     <td className={cn("p-4 text-center font-mono text-slate-600 transition-all duration-300", isWideView && "border-l border-slate-100/50")}>
                                         {item.cpc !== undefined && item.cpc > 0 ? (
@@ -438,13 +729,29 @@ export function KeywordsDatabase({
                                     </td>
                                     <td className={cn("p-4 text-slate-500 font-medium transition-all duration-300", isWideView && "border-l border-slate-100/50")}>{item.source_site}</td>
                                     <td className="p-4 text-center">
-                                        <button
-                                            onClick={() => onDeleteKeyword(item.id)}
-                                            className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                                            title="حذف من القاعدة"
-                                        >
-                                            <Trash2 size={14} />
-                                        </button>
+                                        <div className="flex items-center justify-center gap-1">
+                                            <button
+                                                onClick={() => window.open(`https://www.google.com/search?q="${encodeURIComponent(item.keyword)}"`)}
+                                                className="p-1.5 rounded-lg text-slate-400 hover:text-zinc-900 hover:bg-slate-100 transition-colors"
+                                                title={`بحث بالتطابق التام "${item.keyword}"`}
+                                            >
+                                                <span className="text-[10px] font-black">""</span>
+                                            </button>
+                                            <button
+                                                onClick={() => window.open(`https://www.google.com/search?q=allinurl:"${encodeURIComponent(item.keyword)}"`)}
+                                                className="p-1.5 rounded-lg text-slate-400 hover:text-zinc-900 hover:bg-slate-100 transition-colors"
+                                                title={`بحث بـ allinurl:"${item.keyword}"`}
+                                            >
+                                                <Globe size={12} />
+                                            </button>
+                                            <button
+                                                onClick={() => onDeleteKeyword(item.id)}
+                                                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                                                title="حذف من القاعدة"
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))
