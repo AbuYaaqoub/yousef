@@ -14,7 +14,7 @@
   "host_permissions": [
     "https://*.semrush.com/*",
     "https://*.proseotools.us/*",
-    "https://*.ahrefs.com/*",
+    "https://*.ahrefs.com/*", 
     "http://localhost:3000/*"
   ],
   "content_scripts": [
