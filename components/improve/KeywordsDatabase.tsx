@@ -74,7 +74,9 @@ export function KeywordsDatabase({
     const [searchQuery, setSearchQuery] = useState('');
     const [platformFilter, setPlatformFilter] = useState('all');
     const [kdFilter, setKdFilter] = useState('all');
+    const [lengthFilter, setLengthFilter] = useState('all');
     const [testKeyword, setTestKeyword] = useState('');
+    const [showClassificationStats, setShowClassificationStats] = useState(false);
 
     const [showAddKeywordModal, setShowAddKeywordModal] = useState(false);
     const [targetClientId, setTargetClientId] = useState(selectedClient.id);
@@ -174,6 +176,38 @@ export function KeywordsDatabase({
     const handleDiscardDraftMetrics = () => {
         if (window.confirm('هل أنت متأكد من رغبتك في إلغاء نتائج الفحص الأخيرة وعدم حفظها؟')) {
             setDraftMetrics({});
+        }
+    };
+
+    const handleRemoveDuplicates = async () => {
+        const seen = new Set<string>();
+        const duplicateIds: string[] = [];
+        
+        keywordsDB.forEach(item => {
+            const kwNormalized = item.keyword.trim().toLowerCase();
+            if (seen.has(kwNormalized)) {
+                duplicateIds.push(item.id);
+            } else {
+                seen.add(kwNormalized);
+            }
+        });
+        
+        if (duplicateIds.length === 0) {
+            alert('لا توجد كلمات مفتاحية مكررة للعميل الحالي! ✨');
+            return;
+        }
+        
+        if (window.confirm(`تم العثور على ${duplicateIds.length} كلمة مكررة. هل تريد حذف التكرار والاحتفاظ بكلمة واحدة فريدة لكل منها؟`)) {
+            try {
+                setIsSubmitting(true);
+                await onDeleteKeywords(duplicateIds);
+                alert(`تم إزالة ${duplicateIds.length} كلمة مفتاحية مكررة بنجاح! ✅`);
+            } catch (err: any) {
+                console.error('Error removing duplicates:', err);
+                alert('فشلت عملية إزالة الكلمات المكررة.');
+            } finally {
+                setIsSubmitting(false);
+            }
         }
     };
 
@@ -325,7 +359,7 @@ export function KeywordsDatabase({
     // تصفية قاعدة الكلمات المفتاحية
     const filteredKeywordsDB = keywordsDB.filter(item => {
         const matchesSearch = item.keyword.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                              item.source_site.toLowerCase().includes(searchQuery.toLowerCase());
+                              (item.source_site && item.source_site.toLowerCase().includes(searchQuery.toLowerCase()));
         const matchesPlatform = platformFilter === 'all' || item.platform === platformFilter;
         
         let matchesKD = true;
@@ -333,7 +367,13 @@ export function KeywordsDatabase({
         else if (kdFilter === 'medium') matchesKD = item.kd > 30 && item.kd <= 60;
         else if (kdFilter === 'hard') matchesKD = item.kd > 60;
 
-        return matchesSearch && matchesPlatform && matchesKD;
+        let matchesLength = true;
+        const words = item.keyword.trim().split(/\s+/).filter(Boolean).length;
+        if (lengthFilter === 'short') matchesLength = words === 1;
+        else if (lengthFilter === 'medium') matchesLength = words === 2;
+        else if (lengthFilter === 'long') matchesLength = words >= 3;
+
+        return matchesSearch && matchesPlatform && matchesKD && matchesLength;
     });
 
     const getKDColorClass = (kd: number) => {
@@ -357,7 +397,23 @@ export function KeywordsDatabase({
                         <h3 className="text-lg font-black text-slate-900">قاعدة الكلمات المفتاحية المقترحة</h3>
                         <p className="text-[10px] text-slate-400 font-bold mt-0.5">قائمة بالكلمات المفتاحية المقترحة لمتجرك من المنصات المتخصصة وعمليات المنافسين</p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                        <button
+                            onClick={handleRemoveDuplicates}
+                            className="flex items-center gap-1.5 px-3 py-2.5 rounded-2xl border border-rose-200 text-rose-600 hover:border-rose-300 hover:bg-rose-50/50 text-xs font-bold transition-all"
+                            title="إزالة الكلمات المفتاحية المتكررة للعميل"
+                        >
+                            <Trash2 size={14} />
+                            <span>إزالة التكرار</span>
+                        </button>
+                        <button
+                            onClick={() => setShowClassificationStats(true)}
+                            className="flex items-center gap-1.5 px-3 py-2.5 rounded-2xl border border-slate-200 text-slate-700 hover:border-black hover:bg-slate-50 text-xs font-bold transition-all"
+                            title="تصنيف وحساب أطوال الكلمات المفتاحية"
+                        >
+                            <Database size={14} />
+                            <span>تصنيف الأطوال</span>
+                        </button>
                         <button
                             onClick={() => setShowAddKeywordModal(true)}
                             className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-black hover:bg-zinc-800 text-white font-bold text-xs transition-all shadow-sm"
@@ -438,7 +494,7 @@ export function KeywordsDatabase({
 
                 {/* البحث والتصفية المتقدمة */}
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-3 pt-3 border-t border-slate-100">
-                    <div className="md:col-span-6 relative">
+                    <div className="md:col-span-4 relative">
                         <input 
                             type="text" 
                             placeholder="البحث بالكلمة أو الموقع المصدر..."
@@ -460,7 +516,7 @@ export function KeywordsDatabase({
                             <option value="moz">Moz (دز)</option>
                         </select>
                     </div>
-                    <div className="md:col-span-3">
+                    <div className="md:col-span-2.5">
                         <select
                             value={kdFilter}
                             onChange={(e) => setKdFilter(e.target.value)}
@@ -470,6 +526,18 @@ export function KeywordsDatabase({
                             <option value="easy">سهل (KD ≤ 30)</option>
                             <option value="medium">متوسط (30 &lt; KD ≤ 60)</option>
                             <option value="hard">صعب (KD &gt; 60)</option>
+                        </select>
+                    </div>
+                    <div className="md:col-span-2.5">
+                        <select
+                            value={lengthFilter}
+                            onChange={(e) => setLengthFilter(e.target.value)}
+                            className="w-full bg-slate-50 border border-slate-200/80 rounded-2xl py-3.5 px-4 text-xs font-bold outline-none focus:border-black focus:bg-white text-slate-800 transition-all"
+                        >
+                            <option value="all">كل أطوال الكلمات</option>
+                            <option value="short">كلمات قصيرة (1 كلمة)</option>
+                            <option value="medium">كلمات متوسطة (2 كلمة)</option>
+                            <option value="long">كلمات طويلة الذيل (3+ كلمات)</option>
                         </select>
                     </div>
                 </div>
@@ -587,7 +655,28 @@ export function KeywordsDatabase({
                                             onChange={() => handleSelectToggle(item.id)}
                                         />
                                     </td>
-                                    <td className={cn("p-4 font-black text-slate-900 transition-all duration-300", isWideView && "border-l border-slate-100/50")}>{item.keyword}</td>
+                                    <td className={cn("p-4 font-black text-slate-900 transition-all duration-300", isWideView && "border-l border-slate-100/50")}>
+                                        <div className="flex flex-col gap-1 text-right">
+                                            <span>{item.keyword}</span>
+                                            {(() => {
+                                                const words = item.keyword.trim().split(/\s+/).filter(Boolean).length;
+                                                let badgeText = 'قصيرة';
+                                                let badgeColor = 'bg-zinc-100 text-zinc-700';
+                                                if (words === 2) {
+                                                    badgeText = 'متوسطة';
+                                                    badgeColor = 'bg-blue-50 text-blue-700 border border-blue-100/60';
+                                                } else if (words >= 3) {
+                                                    badgeText = 'طويلة الذيل';
+                                                    badgeColor = 'bg-purple-50 text-purple-700 border border-purple-100/60';
+                                                }
+                                                return (
+                                                    <span className={cn("inline-block w-fit px-1.5 py-0.5 rounded text-[8.5px] font-black", badgeColor)}>
+                                                        {badgeText}
+                                                    </span>
+                                                );
+                                            })()}
+                                        </div>
+                                    </td>
                                     
                                     {/* نية البحث */}
                                     <td className={cn("p-4 text-center transition-all duration-300", isWideView && "border-l border-slate-100/50")}>
@@ -1001,6 +1090,78 @@ export function KeywordsDatabase({
                     </div>
                 </div>
             )}
+
+            {/* مودال تصنيف وحساب أطوال الكلمات المفتاحية */}
+            {showClassificationStats && (() => {
+                const total = keywordsDB.length;
+                const shortCount = keywordsDB.filter(item => item.keyword.trim().split(/\s+/).filter(Boolean).length === 1).length;
+                const mediumCount = keywordsDB.filter(item => item.keyword.trim().split(/\s+/).filter(Boolean).length === 2).length;
+                const longCount = keywordsDB.filter(item => item.keyword.trim().split(/\s+/).filter(Boolean).length >= 3).length;
+
+                const shortPercent = total > 0 ? Math.round((shortCount / total) * 100) : 0;
+                const mediumPercent = total > 0 ? Math.round((mediumCount / total) * 100) : 0;
+                const longPercent = total > 0 ? Math.round((longCount / total) * 100) : 0;
+
+                return (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/65 p-4 animate-in duration-250">
+                        <div className="bg-white border border-slate-100 rounded-[32px] w-full max-w-md p-8 shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
+                            <div className="mb-6 border-b border-slate-100 pb-3">
+                                <h3 className="text-lg font-black text-slate-900">تقرير تصنيف أطوال الكلمات 📊</h3>
+                                <p className="text-[10px] text-slate-400 font-bold mt-1">توزيع الكلمات المفتاحية في قاعدة البيانات للعميل الحالي حسب عدد الكلمات</p>
+                            </div>
+
+                            <div className="space-y-5">
+                                {/* الكلمات القصيرة */}
+                                <div className="space-y-1.5">
+                                    <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                                        <span>كلمات قصيرة (Short-tail) - 1 كلمة</span>
+                                        <span>{shortCount} كلمة ({shortPercent}%)</span>
+                                    </div>
+                                    <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                                        <div className="h-full bg-zinc-800" style={{ width: `${shortPercent}%` }} />
+                                    </div>
+                                </div>
+
+                                {/* الكلمات المتوسطة */}
+                                <div className="space-y-1.5">
+                                    <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                                        <span>كلمات متوسطة (Medium-tail) - 2 كلمة</span>
+                                        <span>{mediumCount} كلمة ({mediumPercent}%)</span>
+                                    </div>
+                                    <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                                        <div className="h-full bg-blue-500" style={{ width: `${mediumPercent}%` }} />
+                                    </div>
+                                </div>
+
+                                {/* الكلمات الطويلة */}
+                                <div className="space-y-1.5">
+                                    <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                                        <span>كلمات طويلة الذيل (Long-tail) - 3 كلمات أو أكثر</span>
+                                        <span>{longCount} كلمة ({longPercent}%)</span>
+                                    </div>
+                                    <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                                        <div className="h-full bg-purple-500" style={{ width: `${longPercent}%` }} />
+                                    </div>
+                                </div>
+
+                                <div className="pt-4 border-t border-slate-100 bg-slate-50/50 p-4 rounded-2xl text-[10.5px] font-medium text-slate-500 leading-normal">
+                                    💡 <strong>نصيحة سيو:</strong> استهداف <strong>الكلمات طويلة الذيل</strong> يساعد على الحصول على زيارات عالية الاستهداف ونسبة تحويل أكبر نظراً لقلة المنافسة ووضوح نية المستخدم في البحث.
+                               </div>
+
+                                <div className="flex items-center gap-3 pt-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowClassificationStats(false)}
+                                        className="flex-1 py-3 px-6 rounded-2xl bg-black hover:bg-zinc-800 text-white font-bold text-xs transition-all shadow-sm text-center"
+                                    >
+                                        إغلاق التقرير
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
         </div>
     );
 }

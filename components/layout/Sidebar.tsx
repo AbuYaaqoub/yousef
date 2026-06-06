@@ -292,7 +292,7 @@ export function Sidebar() {
                                 : "text-zinc-500 hover:text-black hover:bg-zinc-50/50"
                         )}
                     >
-                        موسوعة
+                        أتمتة
                     </button>
                 </div>
             </div>
@@ -407,13 +407,13 @@ export function Sidebar() {
                     </div>
                 )}
 
-                {/* 3. قائمة التبويب الثالث (موسوعة الكلمات) */}
+                {/* 3. قائمة التبويب الثالث (أتمتة الكلمات) */}
                 {activeMainTab === 'encyclopedia' && (
                     <div className="flex-1 flex flex-col items-center justify-center text-center px-4 py-8 animate-in">
                         <div className="w-11 h-11 rounded-2xl bg-zinc-50 border border-zinc-100 flex items-center justify-center mb-4 text-zinc-400">
                             <BookOpen size={20} className="text-zinc-950" />
                         </div>
-                        <h3 className="font-black text-zinc-900 text-sm mb-1.5">موسوعة الكلمات</h3>
+                        <h3 className="font-black text-zinc-900 text-sm mb-1.5">أتمتة الكلمات</h3>
                         <p className="text-[11px] text-zinc-400 leading-relaxed max-w-[200px] mb-4">
                             المكتبة المرجعية المتكاملة للمصطلحات، البيانات التحليلية، واستراتيجيات الترويج بالكلمات.
                         </p>
