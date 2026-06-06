@@ -56,7 +56,7 @@ export function Sidebar() {
     useEffect(() => {
         if (pathname.startsWith('/improve')) {
             setActiveMainTab('improve');
-        } else if (pathname.startsWith('/encyclopedia')) {
+        } else if (pathname.startsWith('/encyclopedia') || pathname.startsWith('/detection-bot')) {
             setActiveMainTab('encyclopedia');
         } else {
             setActiveMainTab('keywords');
@@ -409,19 +409,48 @@ export function Sidebar() {
 
                 {/* 3. قائمة التبويب الثالث (أتمتة الكلمات) */}
                 {activeMainTab === 'encyclopedia' && (
-                    <div className="flex-1 flex flex-col items-center justify-center text-center px-4 py-8 animate-in">
-                        <div className="w-11 h-11 rounded-2xl bg-zinc-50 border border-zinc-100 flex items-center justify-center mb-4 text-zinc-400">
-                            <BookOpen size={20} className="text-zinc-950" />
+                    <div className="space-y-3 animate-in">
+                        <div className="px-2 mb-1">
+                            <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">أدوات الأتمتة المتاحة</span>
                         </div>
-                        <h3 className="font-black text-zinc-900 text-sm mb-1.5">أتمتة الكلمات</h3>
-                        <p className="text-[11px] text-zinc-400 leading-relaxed max-w-[200px] mb-4">
-                            المكتبة المرجعية المتكاملة للمصطلحات، البيانات التحليلية، واستراتيجيات الترويج بالكلمات.
-                        </p>
-                        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-100 border border-zinc-200/60 text-[9px] font-black text-zinc-500">
-                            <span>قريباً</span>
-                            <span>◆</span>
-                            <span>Soon</span>
-                        </div>
+                        
+                        {/* المستطيل الأول: أتمتة واستخراج الأسئلة الذكية */}
+                        <Link
+                            href="/encyclopedia"
+                            className={cn(
+                                "flex flex-col gap-1.5 p-4 rounded-2xl border transition-all duration-300 group text-right",
+                                pathname === '/encyclopedia'
+                                    ? "bg-black text-white border-black shadow-lg shadow-black/10"
+                                    : "bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50 hover:text-black"
+                            )}
+                        >
+                            <div className="flex items-center gap-2">
+                                <BookOpen size={16} className={pathname === '/encyclopedia' ? "text-white" : "text-black group-hover:scale-110 transition-transform duration-300"} />
+                                <span className="font-bold text-xs">أتمتة واستخراج الأسئلة الذكية</span>
+                            </div>
+                            <span className={cn("text-[9px] leading-relaxed", pathname === '/encyclopedia' ? "text-zinc-300" : "text-zinc-400")}>
+                                كشف وتصنيف الأسئلة من Google والشبكات الاجتماعية لبناء السلطة الموضوعية.
+                            </span>
+                        </Link>
+
+                        {/* المستطيل الثاني: بوت الكشف */}
+                        <Link
+                            href="/detection-bot"
+                            className={cn(
+                                "flex flex-col gap-1.5 p-4 rounded-2xl border transition-all duration-300 group text-right",
+                                pathname === '/detection-bot'
+                                    ? "bg-black text-white border-black shadow-lg shadow-black/10"
+                                    : "bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50 hover:text-black"
+                            )}
+                        >
+                            <div className="flex items-center gap-2">
+                                <Sparkles size={16} className={pathname === '/detection-bot' ? "text-white" : "text-black group-hover:scale-110 transition-transform duration-300"} />
+                                <span className="font-bold text-xs">بوت الكشف والتقييم الذكي</span>
+                            </div>
+                            <span className={cn("text-[9px] leading-relaxed", pathname === '/detection-bot' ? "text-zinc-300" : "text-zinc-400")}>
+                                تحليل قيم allintitle وحساب صعوبة الكلمات المفتاحية تلقائياً.
+                            </span>
+                        </Link>
                     </div>
                 )}
             </nav>
