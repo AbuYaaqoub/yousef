@@ -18,7 +18,8 @@ import {
     Plus,
     Trash2,
     Database,
-    Layers
+    Layers,
+    FileText
 } from 'lucide-react';
 
 const navigation = [
@@ -56,7 +57,7 @@ export function Sidebar() {
     useEffect(() => {
         if (pathname.startsWith('/improve')) {
             setActiveMainTab('improve');
-        } else if (pathname.startsWith('/encyclopedia') || pathname.startsWith('/detection-bot')) {
+        } else if (pathname.startsWith('/encyclopedia') || pathname.startsWith('/detection-bot') || pathname.startsWith('/editor-bot')) {
             setActiveMainTab('encyclopedia');
         } else {
             setActiveMainTab('keywords');
@@ -449,6 +450,25 @@ export function Sidebar() {
                             </div>
                             <span className={cn("text-[9px] leading-relaxed", pathname === '/detection-bot' ? "text-zinc-300" : "text-zinc-400")}>
                                 تحليل قيم allintitle وحساب صعوبة الكلمات المفتاحية تلقائياً.
+                            </span>
+                        </Link>
+
+                        {/* المستطيل الثالث: المحرر الذكي */}
+                        <Link
+                            href="/editor-bot"
+                            className={cn(
+                                "flex flex-col gap-1.5 p-4 rounded-2xl border transition-all duration-300 group text-right",
+                                pathname === '/editor-bot'
+                                    ? "bg-black text-white border-black shadow-lg shadow-black/10"
+                                    : "bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50 hover:text-black"
+                            )}
+                        >
+                            <div className="flex items-center gap-2">
+                                <FileText size={16} className={pathname === '/editor-bot' ? "text-white" : "text-black group-hover:scale-110 transition-transform duration-300"} />
+                                <span className="font-bold text-xs">المحرر الذكي</span>
+                            </div>
+                            <span className={cn("text-[9px] leading-relaxed", pathname === '/editor-bot' ? "text-zinc-300" : "text-zinc-400")}>
+                                أتمتة صياغة وهيكلة المقالات، الخدمات، المنتجات وتوليد مخطط الأسئلة الشائعة (FAQ Schema).
                             </span>
                         </Link>
                     </div>
