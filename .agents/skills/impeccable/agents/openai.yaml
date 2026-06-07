@@ -1,4 +1,10 @@
+<<<<<<< HEAD
 interface:
   display_name: Impeccable
   short_description: Use when the user wants to design, redesign, shape, critique, audit, polish, clarify,...
+=======
+interface:
+  display_name: Impeccable
+  short_description: Use when the user wants to design, redesign, shape, critique, audit, polish, clarify,...
+>>>>>>> aaada3b495067a3cf1ab57db533c8bd11b4673f8
   default_prompt: Use Impeccable to redesign, critique, audit, or polish this frontend.
